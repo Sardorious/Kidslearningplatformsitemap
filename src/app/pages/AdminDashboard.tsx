@@ -35,7 +35,7 @@ import {
 } from "../components/ui/select";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useEffect } from "react";
-import { userService, courseService, lessonService, fileService } from "../api/services";
+import { userService, courseService, lessonService, fileService, classService, materialService } from "../api/services";
 
 export function AdminDashboard() {
   const { t } = useLanguage();
@@ -57,6 +57,9 @@ export function AdminDashboard() {
   // Form states for creating entities
   const [courseForm, setCourseForm] = useState({ title: '', category: '', level: '', description: '', ageRange: '', emoji: '', status: 'draft' });
   const [materialForm, setMaterialForm] = useState({ name: '', type: '', courseId: '', file: null as File | null });
+  const [teacherForm, setTeacherForm] = useState({ name: '', email: '', password: 'Password123!', phone: '' });
+  const [studentForm, setStudentForm] = useState({ name: '', email: '', password: 'Password123!', phone: '' });
+  const [classForm, setClassForm] = useState({ name: '', grade: '', teacherId: '', schedule: '', room: '' });
 
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -64,20 +67,22 @@ export function AdminDashboard() {
         setLoading(true);
         // In a complete app, we'd have dedicated admin endpoints.
         // For now, we'll fetch what we can from the existing endpoints.
-        const [users, coursesData] = await Promise.all([
+        const [users, coursesData, classesData, materialsData] = await Promise.all([
           userService.getAllUsers(),
-          courseService.getAll()
+          courseService.getAll(),
+          classService.getAll(),
+          materialService.getAll()
         ]);
 
-        const students = users.filter((u: any) => u.role === 'Student');
-        const teachers = users.filter((u: any) => u.role === 'Teacher' || u.role === 'Admin');
+        const students = users.filter((u: any) => u.role === 'STUDENT' || u.role === 'Student');
+        const teachers = users.filter((u: any) => u.role === 'TEACHER' || u.role === 'Teacher' || u.role === 'ADMIN' || u.role === 'Admin');
 
         setData({
           students,
           teachers,
           courses: coursesData,
-          materials: [], // Requires a specific file listing endpoint or extracting from courses/lessons
-          classes: [] // If classes are a separate entity not fully fleshed out in backend yet
+          materials: materialsData,
+          classes: classesData
         });
       } catch (err) {
         console.error("Failed to load admin data", err);
@@ -108,7 +113,7 @@ export function AdminDashboard() {
     if (!deleteConfirm) return;
     try {
       if (deleteConfirm.type === 'course') {
-        await courseService.delete(parseInt(deleteConfirm.id)); // Using integer API ids
+        await courseService.delete(parseInt(deleteConfirm.id));
         setData(prev => ({
           ...prev,
           courses: prev.courses.filter(c => c.id !== parseInt(deleteConfirm.id))
@@ -119,6 +124,18 @@ export function AdminDashboard() {
           ...prev,
           teachers: prev.teachers.filter(t => t.id !== parseInt(deleteConfirm.id)),
           students: prev.students.filter(s => s.id !== parseInt(deleteConfirm.id))
+        }));
+      } else if (deleteConfirm.type === 'class') {
+        await classService.delete(parseInt(deleteConfirm.id));
+        setData(prev => ({
+          ...prev,
+          classes: prev.classes.filter(c => c.id !== parseInt(deleteConfirm.id))
+        }));
+      } else if (deleteConfirm.type === 'material') {
+        await materialService.delete(parseInt(deleteConfirm.id));
+        setData(prev => ({
+          ...prev,
+          materials: prev.materials.filter(m => m.id !== parseInt(deleteConfirm.id))
         }));
       }
 
@@ -156,18 +173,76 @@ export function AdminDashboard() {
     }
   };
 
+  const handleCreateTeacher = async () => {
+    try {
+      const newUser = await userService.create({
+        name: teacherForm.name,
+        phone: teacherForm.phone,
+        password: teacherForm.password,
+        role: 'TEACHER'
+      });
+      setData(prev => ({
+        ...prev,
+        teachers: [...prev.teachers, newUser]
+      }));
+      setSelectedModal(null);
+      setTeacherForm({ name: '', email: '', password: 'Password123!', phone: '' });
+    } catch (err) {
+      console.error("Error creating teacher", err);
+    }
+  };
+
+  const handleCreateStudent = async () => {
+    try {
+      const newUser = await userService.create({
+        name: studentForm.name,
+        phone: studentForm.phone,
+        password: studentForm.password,
+        role: 'STUDENT'
+      });
+      setData(prev => ({
+        ...prev,
+        students: [...prev.students, newUser]
+      }));
+      setSelectedModal(null);
+      setStudentForm({ name: '', email: '', password: 'Password123!', phone: '' });
+    } catch (err) {
+      console.error("Error creating student", err);
+    }
+  };
+
+  const handleCreateClass = async () => {
+    try {
+      const newClass = await classService.create({
+        name: classForm.name,
+        grade: classForm.grade,
+        teacherId: parseInt(classForm.teacherId),
+        schedule: classForm.schedule,
+        room: classForm.room
+      });
+      setData(prev => ({
+        ...prev,
+        classes: [...prev.classes, newClass]
+      }));
+      setSelectedModal(null);
+      setClassForm({ name: '', grade: '', teacherId: '', schedule: '', room: '' });
+    } catch (err) {
+      console.error("Error creating class", err);
+    }
+  };
+
   const handleUploadMaterial = async () => {
     try {
       if (!materialForm.file) return alert("Please select a file first.");
       const res = await fileService.upload(materialForm.file);
-      const newMaterial = {
+      const newMaterial = await materialService.create({
         name: materialForm.name,
         type: materialForm.type,
-        courseId: materialForm.courseId,
-        url: res.Url, // File URL returned from endpoint (res.Url is used here)
-      };
+        courseId: parseInt(materialForm.courseId),
+        url: res.Url,
+        size: Math.round(materialForm.file.size / 1024) + " KB"
+      });
 
-      // Add to local state (Note: A real API might return full object mapping)
       setData(prev => ({
         ...prev,
         materials: [...prev.materials, newMaterial]
@@ -635,13 +710,13 @@ export function AdminDashboard() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       {t.fullName}
                     </label>
-                    <Input type="text" placeholder="John Doe" className="rounded-xl" />
+                    <Input type="text" placeholder="John Doe" className="rounded-xl" value={teacherForm.name} onChange={(e) => setTeacherForm({ ...teacherForm, name: e.target.value })} />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.email}
+                      {t.contact}
                     </label>
-                    <Input type="email" placeholder="john@example.com" className="rounded-xl" />
+                    <Input type="text" placeholder="123456789" className="rounded-xl" value={teacherForm.phone} onChange={(e) => setTeacherForm({ ...teacherForm, phone: e.target.value })} />
                   </div>
                 </div>
 
@@ -662,7 +737,7 @@ export function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.status}
+                      {t.active}
                     </label>
                     <Select defaultValue="active">
                       <SelectTrigger className="rounded-xl">
@@ -695,7 +770,7 @@ export function AdminDashboard() {
                 <div className="flex gap-3 pt-4">
                   <Button
                     className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl"
-                    onClick={() => setSelectedModal(null)}
+                    onClick={handleCreateTeacher}
                   >
                     {t.addTeacher}
                   </Button>
@@ -731,13 +806,13 @@ export function AdminDashboard() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       {t.fullName}
                     </label>
-                    <Input type="text" placeholder="Emma Wilson" className="rounded-xl" />
+                    <Input type="text" placeholder="Emma Wilson" className="rounded-xl" value={studentForm.name} onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })} />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.email}
+                      {t.contact}
                     </label>
-                    <Input type="email" placeholder="emma@student.com" className="rounded-xl" />
+                    <Input type="text" placeholder="987654321" className="rounded-xl" value={studentForm.phone} onChange={(e) => setStudentForm({ ...studentForm, phone: e.target.value })} />
                   </div>
                 </div>
 
@@ -750,7 +825,7 @@ export function AdminDashboard() {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {t.class}
+                      {t.gradeLevel}
                     </label>
                     <Select defaultValue="">
                       <SelectTrigger className="rounded-xl">
@@ -778,7 +853,7 @@ export function AdminDashboard() {
                 <div className="flex gap-3 pt-4">
                   <Button
                     className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl"
-                    onClick={() => setSelectedModal(null)}
+                    onClick={handleCreateStudent}
                   >
                     {t.addStudent}
                   </Button>
@@ -814,13 +889,13 @@ export function AdminDashboard() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       {t.className}
                     </label>
-                    <Input type="text" placeholder="Grade 2A" className="rounded-xl" />
+                    <Input type="text" placeholder="Grade 2A" className="rounded-xl" value={classForm.name} onChange={(e) => setClassForm({ ...classForm, name: e.target.value })} />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       {t.gradeLevel}
                     </label>
-                    <Select defaultValue="">
+                    <Select value={classForm.grade} onValueChange={(val) => setClassForm({ ...classForm, grade: val })}>
                       <SelectTrigger className="rounded-xl">
                         <SelectValue placeholder="Select grade" />
                       </SelectTrigger>
@@ -839,14 +914,14 @@ export function AdminDashboard() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     {t.assignTeacher}
                   </label>
-                  <Select defaultValue="">
+                  <Select value={classForm.teacherId} onValueChange={(val) => setClassForm({ ...classForm, teacherId: val })}>
                     <SelectTrigger className="rounded-xl">
                       <SelectValue placeholder="Select teacher" />
                     </SelectTrigger>
                     <SelectContent>
                       {data.teachers.map((teacher: any) => (
                         <SelectItem key={teacher.id} value={teacher.id.toString()}>
-                          {teacher.firstName} {teacher.lastName}
+                          {teacher.name || `${teacher.firstName} ${teacher.lastName}`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -858,20 +933,20 @@ export function AdminDashboard() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       {t.schedule}
                     </label>
-                    <Input type="text" placeholder="Mon-Fri 9:00-15:00" className="rounded-xl" />
+                    <Input type="text" placeholder="Mon-Fri 9:00-15:00" className="rounded-xl" value={classForm.schedule} onChange={(e) => setClassForm({ ...classForm, schedule: e.target.value })} />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       {t.room}
                     </label>
-                    <Input type="text" placeholder="Room 201" className="rounded-xl" />
+                    <Input type="text" placeholder="Room 201" className="rounded-xl" value={classForm.room} onChange={(e) => setClassForm({ ...classForm, room: e.target.value })} />
                   </div>
                 </div>
 
                 <div className="flex gap-3 pt-4">
                   <Button
                     className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl"
-                    onClick={() => setSelectedModal(null)}
+                    onClick={handleCreateClass}
                   >
                     {t.addClass}
                   </Button>
@@ -993,7 +1068,7 @@ export function AdminDashboard() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    {t.status}
+                    {t.active}
                   </label>
                   <Select value={courseForm.status} onValueChange={(val) => setCourseForm({ ...courseForm, status: val })}>
                     <SelectTrigger className="rounded-xl">

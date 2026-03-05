@@ -22,6 +22,10 @@ export const userService = {
     deleteUser: async (id: number) => {
         const response = await api.delete(`/admin/users/${id}`);
         return response.data;
+    },
+    create: async (userData: any) => {
+        const response = await api.post('/users', userData);
+        return response.data;
     }
 };
 
@@ -73,6 +77,38 @@ export const lessonService = {
     },
     delete: async (id: number) => {
         const response = await api.delete(`/admin/lessons/${id}`);
+        return response.data;
+    }
+};
+
+// Classes API
+export const classService = {
+    getAll: async () => {
+        const response = await api.get('/admin/classes');
+        return response.data;
+    },
+    create: async (classData: any) => {
+        const response = await api.post('/admin/classes', classData);
+        return response.data;
+    },
+    delete: async (id: number) => {
+        const response = await api.delete(`/admin/classes/${id}`);
+        return response.data;
+    }
+};
+
+// Materials API
+export const materialService = {
+    getAll: async () => {
+        const response = await api.get('/admin/materials');
+        return response.data;
+    },
+    create: async (materialData: any) => {
+        const response = await api.post('/admin/materials', materialData);
+        return response.data;
+    },
+    delete: async (id: number) => {
+        const response = await api.delete(`/admin/materials/${id}`);
         return response.data;
     }
 };
