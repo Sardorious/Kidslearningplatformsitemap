@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
-import { ChevronLeft, ChevronRight, CheckCircle, Circle, Play, BookOpen, FileQuestion, Gamepad2, Menu, X, ArrowLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Circle, Play, BookOpen, FileQuestion, Gamepad2, Menu, X, ArrowLeft, Lock, FileText } from "lucide-react";
 import { courseService, lessonService, userService } from "../api/services";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -25,6 +25,8 @@ export function LessonPlayer() {
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [earnedXp, setEarnedXp] = useState(0);
+  const [showCompletionMessage, setShowCompletionMessage] = useState(false);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -35,11 +37,33 @@ export function LessonPlayer() {
           courseService.getById(parseInt(courseId)),
           lessonService.getByCourse(parseInt(courseId))
         ]);
-        setCourse(courseData);
-        setCourseLessons(lessonsData || []);
 
-        if (lessonId && lessonsData) {
-          const idx = lessonsData.findIndex((l: any) => l.id === parseInt(lessonId));
+        // Normalize course data
+        const normalizedCourse = courseData ? {
+          ...courseData,
+          id: (courseData as any).id ?? (courseData as any).Id,
+          title: (courseData as any).title ?? (courseData as any).Title,
+          imageUrl: (courseData as any).imageUrl ?? (courseData as any).ImageUrl ?? (courseData as any).image ?? (courseData as any).Image
+        } : null;
+
+        setCourse(normalizedCourse);
+
+        // Normalize lessons data
+        const normalizedLessons = (lessonsData || []).map((l: any) => ({
+          ...l,
+          id: l.id ?? l.Id,
+          title: l.title ?? l.Title,
+          description: l.description ?? l.Description,
+          type: (l.type ?? l.Type ?? "video").toLowerCase(),
+          contentUrl: l.contentUrl ?? l.ContentUrl ?? l.url ?? l.Url,
+          duration: l.duration ?? l.Duration,
+          completed: l.completed ?? l.Completed
+        }));
+
+        setCourseLessons(normalizedLessons);
+
+        if (lessonId && normalizedLessons.length > 0) {
+          const idx = normalizedLessons.findIndex((l: any) => l.id === parseInt(lessonId));
           if (idx !== -1) setCurrentLessonIndex(idx);
         }
       } catch (error) {
@@ -49,7 +73,7 @@ export function LessonPlayer() {
       }
     };
     fetchData();
-  }, [courseId]);
+  }, [courseId, lessonId]);
 
   if (loading) {
     return (
@@ -81,12 +105,25 @@ export function LessonPlayer() {
     ? ((currentLessonIndex + 1) / courseLessons.length) * 100
     : 0;
 
+  const xpPerLesson = Math.floor(100 / (courseLessons.length || 1));
+  const totalXp = currentLessonIndex * xpPerLesson + (currentLesson.completed ? xpPerLesson : 0) + earnedXp;
+
+  // Check if a specific lesson index should be locked
+  const isLessonLocked = (index: number) => {
+    if (index === 0) return false;
+    // Locked if the previous lesson is not completed
+    return !courseLessons[index - 1]?.completed;
+  };
+
   const getLessonIcon = (type: string) => {
     switch (type) {
       case "video": return Play;
       case "interactive": return Gamepad2;
       case "quiz": return FileQuestion;
       case "reading": return BookOpen;
+      case "listening": return BookOpen;
+      case "pdf":
+      case "document": return FileText;
       default: return Play;
     }
   };
@@ -96,6 +133,9 @@ export function LessonPlayer() {
     interactive: "text-blue-600 bg-blue-50",
     quiz: "text-amber-600 bg-amber-50",
     reading: "text-emerald-600 bg-emerald-50",
+    listening: "text-blue-600 bg-blue-50",
+    pdf: "text-red-600 bg-red-50",
+    document: "text-blue-600 bg-blue-50",
     default: "text-gray-600 bg-gray-100",
   };
 
@@ -107,6 +147,16 @@ export function LessonPlayer() {
         const newLessons = [...courseLessons];
         newLessons[currentLessonIndex].completed = true;
         setCourseLessons(newLessons);
+
+        let newXp = earnedXp + xpPerLesson;
+        const potentialTotal = (currentLessonIndex + 1) * xpPerLesson + newXp;
+
+        // Give bonus completion XP if reaching threshold
+        if (potentialTotal >= 85 && !showCompletionMessage) {
+          newXp += potentialTotal; // Bonus equal to current xp
+          setShowCompletionMessage(true);
+        }
+        setEarnedXp(newXp);
       }
     } catch (err) {
       console.error("Failed to mark lesson complete", err);
@@ -144,6 +194,9 @@ export function LessonPlayer() {
           </Link>
           <span>/</span>
           <span className="text-gray-900 font-semibold truncate max-w-[160px] sm:max-w-xs">{course.title}</span>
+          <span className="ml-4 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold text-xs flex items-center gap-1">
+            🏆 {totalXp} XP Minimum 100 XP
+          </span>
         </div>
 
         {/* Mobile lesson list toggle */}
@@ -182,25 +235,30 @@ export function LessonPlayer() {
               {courseLessons.map((lesson, index) => {
                 const LessonIcon = getLessonIcon(lesson.type);
                 const isActive = index === currentLessonIndex;
+                const locked = isLessonLocked(index);
 
                 return (
                   <button
                     key={lesson.id}
+                    disabled={locked}
                     onClick={() => { setCurrentLessonIndex(index); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${isActive
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left ${locked ? "opacity-50 cursor-not-allowed bg-gray-50" :
+                      isActive
                         ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
                         : lesson.completed
                           ? "bg-emerald-50 hover:bg-emerald-100"
                           : "bg-gray-50 hover:bg-gray-100"
                       }`}
                   >
-                    {lesson.completed ? (
+                    {locked ? (
+                      <Lock className="w-5 h-5 shrink-0 text-gray-400" />
+                    ) : lesson.completed ? (
                       <CheckCircle className={`w-5 h-5 shrink-0 ${isActive ? "text-white" : "text-emerald-500"}`} />
                     ) : (
                       <Circle className={`w-5 h-5 shrink-0 ${isActive ? "text-white" : "text-gray-300"}`} />
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className={`text-sm font-semibold truncate ${isActive ? "text-white" : "text-gray-900"}`}>
+                      <div className={`text-sm font-semibold truncate ${isActive ? "text-white" : locked ? "text-gray-500" : "text-gray-900"}`}>
                         {lesson.title}
                       </div>
                       <div className={`text-xs flex items-center gap-1.5 mt-0.5 ${isActive ? "text-white/80" : "text-gray-400"}`}>
@@ -220,18 +278,26 @@ export function LessonPlayer() {
         <div className="lg:col-span-2 space-y-4">
           {/* Video/Content Area */}
           <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
-            <div className="bg-gradient-to-br from-gray-900 to-gray-800 aspect-video flex items-center justify-center relative">
+            <div className={`bg-gradient-to-br from-gray-900 to-gray-800 ${(currentLesson.type === 'pdf' || currentLesson.type === 'document') ? 'h-[600px]' : 'aspect-video'} flex items-center justify-center relative`}>
               {currentLesson.type === "video" && (
-                <>
-                  <img
-                    src={course.imageUrl || course.image || "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80"}
-                    alt={currentLesson.title}
-                    className="absolute inset-0 w-full h-full object-cover opacity-40"
-                  />
-                  <button className="relative z-10 w-16 h-16 md:w-20 md:h-20 bg-white/90 rounded-full flex items-center justify-center hover:bg-white hover:scale-110 transition-all shadow-2xl">
-                    <Play className="w-8 h-8 md:w-10 md:h-10 text-purple-600 ml-1 fill-purple-600" />
-                  </button>
-                </>
+                currentLesson.contentUrl ? (
+                  <video
+                    controls
+                    playsInline
+                    src={currentLesson.contentUrl}
+                    className="w-full h-full object-contain"
+                    poster={course.imageUrl || course.image}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <>
+                    <img src={course.imageUrl || course.image || "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80"} alt={currentLesson.title} className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                    <button className="relative z-10 w-16 h-16 md:w-20 md:h-20 bg-white/90 rounded-full flex items-center justify-center hover:bg-white hover:scale-110 transition-all shadow-2xl">
+                      <Play className="w-8 h-8 md:w-10 md:h-10 text-purple-600 ml-1 fill-purple-600" />
+                    </button>
+                  </>
+                )
               )}
               {currentLesson.type === "interactive" && (
                 <div className="text-center p-8">
@@ -254,6 +320,38 @@ export function LessonPlayer() {
                   <p className="text-gray-300 mt-1 text-sm">Let's read together!</p>
                 </div>
               )}
+              {currentLesson.type === "listening" && (
+                <div className="text-center p-8">
+                  <BookOpen className="w-16 h-16 text-blue-400 mx-auto mb-3" />
+                  <p className="text-white text-xl font-bold">Listening Activity 🎧</p>
+                  <p className="text-gray-300 mt-1 text-sm">Listen carefully and learn!</p>
+                </div>
+              )}
+              {(currentLesson.type === "pdf" || currentLesson.type === "document") && (
+                currentLesson.contentUrl ? (
+                  <iframe
+                    src={currentLesson.contentUrl}
+                    className="w-full h-full border-0 rounded-b-2xl bg-white"
+                    title="Document Viewer"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <div className="text-center p-8 text-white">
+                    <FileText className="w-16 h-16 text-red-400 mx-auto mb-3" />
+                    <p className="text-xl font-bold">Document not found</p>
+                    <p className="text-gray-400 mt-1 text-sm">Please check if the material was properly linked.</p>
+                  </div>
+                )
+              )}
+              {/* Catch-all fallback if type is unknown but expected to be video or something else */}
+              {!["video", "interactive", "quiz", "reading", "pdf", "document", "listening"].includes(currentLesson.type) && (
+                <div className="text-center p-8">
+                  <Play className="w-16 h-16 text-gray-400 mx-auto mb-3" />
+                  <p className="text-white text-xl font-bold">{currentLesson.title}</p>
+                  <p className="text-gray-400 mt-1 text-sm text-wrap">Lesson type: {currentLesson.type || 'undefined'}</p>
+                </div>
+              )}
             </div>
 
             <div className="p-4 md:p-6">
@@ -267,9 +365,15 @@ export function LessonPlayer() {
                 {currentLesson.title}
               </h2>
               <p className="text-gray-500 text-sm md:text-base leading-relaxed mb-6">
-                This is a {currentLesson.type} lesson that will help you master the concepts.
-                Take your time and enjoy the learning experience!
+                {currentLesson.description || `This is a ${currentLesson.type} lesson that will help you master the concepts. Take your time and enjoy the learning experience!`}
               </p>
+
+              {showCompletionMessage && (
+                <div className="mb-6 p-4 bg-gradient-to-r from-emerald-400 to-green-500 text-white rounded-xl shadow border border-emerald-300">
+                  <h3 className="font-black text-lg flex items-center gap-2">🎉 Congratulations!</h3>
+                  <p className="text-sm font-medium">You reached 85 XP and successfully completed this course! We've awarded you a bonus! Keep up the great work.</p>
+                </div>
+              )}
 
               {/* Navigation Buttons */}
               <div className="flex items-center justify-between gap-3">
@@ -284,11 +388,17 @@ export function LessonPlayer() {
                   <span className="sm:hidden">Prev</span>
                 </Button>
 
-                <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl px-4 sm:px-8 text-white font-bold shadow-md flex-1 sm:flex-none">
-                  {currentLesson.type === "video" ? (
+                <Button
+                  onClick={handleNext}
+                  disabled={completing}
+                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl px-4 sm:px-8 text-white font-bold shadow-md flex-1 sm:flex-none"
+                >
+                  {currentLesson.completed ? (
+                    <><CheckCircle className="w-4 h-4 mr-1.5" /> {t.completed || "Completed"}</>
+                  ) : currentLesson.type === "video" ? (
                     <><Play className="w-4 h-4 mr-1.5 fill-white" /> {t.watchNow}</>
                   ) : (
-                    t.startActivity
+                    <><Gamepad2 className="w-4 h-4 mr-1.5" /> {t.startActivity}</>
                   )}
                 </Button>
 

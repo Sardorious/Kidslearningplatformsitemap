@@ -75,10 +75,10 @@ export const courses = [
 
 export const lessons = {
   "1": [
-    { id: "1", title: "Counting 1-10", duration: "15 min", completed: true, type: "video" },
-    { id: "2", title: "Addition Basics", duration: "20 min", completed: true, type: "interactive" },
-    { id: "3", title: "Subtraction Fun", duration: "20 min", completed: false, type: "video" },
-    { id: "4", title: "Practice Quiz", duration: "10 min", completed: false, type: "quiz" },
+    { id: "1", title: "Counting 1-10", description: "Watch our fun video on counting from 1 to 10!", duration: "15 min", completed: true, type: "video", contentUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
+    { id: "2", title: "Addition Basics", description: "Learn how to add two numbers together.", duration: "20 min", completed: true, type: "interactive" },
+    { id: "3", title: "Subtraction Fun", description: "See what happens when you take numbers away.", duration: "20 min", completed: false, type: "video", contentUrl: "https://www.w3schools.com/html/mov_bbb.mp4" },
+    { id: "4", title: "Practice Guide (PDF)", description: "Read this PDF to practice addition.", duration: "10 min", completed: false, type: "pdf", contentUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" },
   ],
   "3": [
     { id: "1", title: "Letter Sounds A-Z", duration: "25 min", completed: true, type: "video" },

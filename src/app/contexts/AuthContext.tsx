@@ -1,20 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService } from '../api/auth';
 import { userService } from '../api/services';
-
-interface User {
-    id: number;
-    name: string;
-    phoneNumber: string;
-    role: string;
-}
+import { User } from '../types';
 
 interface AuthContextType {
     user: User | null;
     token: string | null;
     isAuthenticated: boolean;
-    login: (credentials: any) => Promise<void>;
-    register: (userData: any) => Promise<void>;
+    login: (credentials: Pick<User, 'phoneNumber'> & { password?: string }) => Promise<void>;
+    register: (userData: Omit<User, 'id' | 'xp'> & { password?: string }) => Promise<void>;
     logout: () => void;
     isLoading: boolean;
 }
@@ -44,19 +38,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadUser();
     }, [token]);
 
-    const login = async (credentials: any) => {
-        const data = await authService.login(credentials);
-        const jwtToken = data.token;
-        localStorage.setItem('token', jwtToken);
-        setToken(jwtToken);
-        // User profile will be fetched by the useEffect
+    const login = async (credentials: Pick<User, 'phoneNumber'> & { password?: string }) => {
+        try {
+            const data = await authService.login(credentials);
+            const jwtToken = data.token;
+            localStorage.setItem('token', jwtToken);
+            setToken(jwtToken);
+            // User profile will be fetched by the useEffect
+        } catch (error) {
+            console.error('Login failed', error);
+            throw error; // Re-throw to inform caller
+        }
     };
 
-    const register = async (userData: any) => {
-        const data = await authService.register(userData);
-        const jwtToken = data.token;
-        localStorage.setItem('token', jwtToken);
-        setToken(jwtToken);
+    const register = async (userData: Omit<User, 'id' | 'xp'> & { password?: string }) => {
+        try {
+            const data = await authService.register(userData);
+            const jwtToken = data.token;
+            localStorage.setItem('token', jwtToken);
+            setToken(jwtToken);
+        } catch (error) {
+            console.error('Registration failed', error);
+            throw error;
+        }
     };
 
     const logout = () => {

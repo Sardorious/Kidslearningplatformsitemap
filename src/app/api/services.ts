@@ -1,81 +1,82 @@
 import { authService } from './auth';
 import api from './axios';
+import { User, Course, Lesson, ProgressData } from '../types';
 
 // Users API
 export const userService = {
-    getProfile: async () => {
-        const response = await api.get('/users/me');
+    getProfile: async (): Promise<User> => {
+        const response = await api.get<User>('/users/me');
         return response.data;
     },
-    getProgress: async (courseId?: number) => {
+    getProgress: async (courseId?: number): Promise<ProgressData[]> => {
         const response = await api.get('/progress', { params: { courseId } });
         return response.data;
     },
-    completeLesson: async (lessonData: { lessonId: number, score?: number }) => {
-        const response = await api.post('/progress/complete-lesson', lessonData);
+    completeLesson: async (lessonData: { lessonId: number, score?: number }): Promise<ProgressData> => {
+        const response = await api.post<ProgressData>('/progress/complete-lesson', lessonData);
         return response.data;
     },
-    getAllUsers: async () => {
-        const response = await api.get('/users');
+    getAllUsers: async (): Promise<User[]> => {
+        const response = await api.get<User[]>('/users');
         return response.data;
     },
-    deleteUser: async (id: number) => {
+    deleteUser: async (id: number): Promise<void> => {
         const response = await api.delete(`/admin/users/${id}`);
         return response.data;
     },
-    create: async (userData: any) => {
-        const response = await api.post('/users', userData);
+    create: async (userData: Omit<User, 'id'> & { password?: string }): Promise<User> => {
+        const response = await api.post<User>('/users', userData);
         return response.data;
     }
 };
 
 // Courses API
 export const courseService = {
-    getAll: async () => {
-        const response = await api.get('/courses');
+    getAll: async (): Promise<Course[]> => {
+        const response = await api.get<Course[]>('/courses');
         return response.data;
     },
-    getById: async (id: number) => {
-        const response = await api.get(`/courses/${id}`);
+    getById: async (id: number): Promise<Course> => {
+        const response = await await api.get<Course>(`/courses/${id}`);
         return response.data;
     },
-    create: async (courseData: any) => {
-        const response = await api.post('/admin/courses', courseData);
+    create: async (courseData: Omit<Course, 'id'>): Promise<Course> => {
+        const response = await api.post<Course>('/admin/courses', courseData);
         return response.data;
     },
-    update: async (id: number, courseData: any) => {
-        const response = await api.put(`/admin/courses/${id}`, courseData);
+    update: async (id: number, courseData: Partial<Course>): Promise<Course> => {
+        const response = await api.put<Course>(`/admin/courses/${id}`, courseData);
         return response.data;
     },
-    delete: async (id: number) => {
+    delete: async (id: number): Promise<void> => {
         const response = await api.delete(`/admin/courses/${id}`);
         return response.data;
     },
-    getTeacherCourses: async () => {
-        const response = await api.get('/courses/teacher');
+    getTeacherCourses: async (): Promise<Course[]> => {
+        const response = await api.get<Course[]>('/courses/teacher');
         return response.data;
     }
 };
 
 // Lessons API
 export const lessonService = {
-    getById: async (id: number) => {
-        const response = await api.get(`/lessons/${id}`);
+    getById: async (id: number): Promise<Lesson> => {
+        const response = await api.get<Lesson>(`/lessons/${id}`);
         return response.data;
     },
-    getByCourse: async (courseId: number) => {
-        const response = await api.get(`/lessons/course/${courseId}`);
+    getByCourse: async (courseId: number): Promise<Lesson[]> => {
+        const response = await api.get<Lesson[]>(`/lessons/course/${courseId}`);
         return response.data;
     },
-    create: async (lessonData: any) => {
-        const response = await api.post('/admin/lessons', lessonData);
+    create: async (lessonData: Omit<Lesson, 'id'>): Promise<Lesson> => {
+        const response = await api.post<Lesson>('/admin/lessons', lessonData);
         return response.data;
     },
-    update: async (id: number, lessonData: any) => {
-        const response = await api.put(`/admin/lessons/${id}`, lessonData);
+    update: async (id: number, lessonData: Partial<Lesson>): Promise<Lesson> => {
+        const response = await api.put<Lesson>(`/admin/lessons/${id}`, lessonData);
         return response.data;
     },
-    delete: async (id: number) => {
+    delete: async (id: number): Promise<void> => {
         const response = await api.delete(`/admin/lessons/${id}`);
         return response.data;
     }

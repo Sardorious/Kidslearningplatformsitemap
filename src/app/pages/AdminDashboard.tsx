@@ -61,6 +61,9 @@ export function AdminDashboard() {
   const [teacherForm, setTeacherForm] = useState({ name: '', email: '', password: 'Password123!', phone: '' });
   const [studentForm, setStudentForm] = useState({ name: '', email: '', password: 'Password123!', PhoneNumber: '' });
   const [classForm, setClassForm] = useState({ name: '', grade: '', teacherId: '', schedule: '', room: '' });
+  const [selectedCourseForLessons, setSelectedCourseForLessons] = useState<any>(null);
+  const [lessonsForSelectedCourse, setLessonsForSelectedCourse] = useState<any[]>([]);
+  const [lessonForm, setLessonForm] = useState({ title: '', description: '', duration: '', type: 'video', contentUrl: '', materialId: '' });
 
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -190,12 +193,11 @@ export function AdminDashboard() {
       const newCourse = await courseService.create({
         title: courseForm.title,
         description: courseForm.description,
-        subject: courseForm.category, // Assuming category maps to subject
+        category: courseForm.category, // Using category instead of subject
         difficultyLevel: courseForm.level,
         targetAgeGroup: courseForm.ageRange,
-        imageSource: courseForm.emoji, // Storing emoji in imageSource for now
-        price: 0, // Default price as expected by backend DTO
-        imageUrl: courseForm.emoji // Also mapping emoji to ImageUrl for backend
+        imageSource: courseForm.emoji,
+        imageUrl: courseForm.emoji
       });
       // Currently our API endpoint doesn't strictly take 'status', we append to local data
       setData(prev => ({
@@ -216,7 +218,6 @@ export function AdminDashboard() {
         title: courseForm.title,
         description: courseForm.description,
         category: courseForm.category,
-        price: 0,
         imageUrl: courseForm.emoji
       });
       setData(prev => ({
@@ -235,9 +236,10 @@ export function AdminDashboard() {
     try {
       const newUser = await userService.create({
         name: teacherForm.name,
-        phone: teacherForm.phone,
+        phoneNumber: teacherForm.phone,
         password: teacherForm.password,
-        role: 'TEACHER'
+        role: 'TEACHER',
+        xp: 0
       });
       setData(prev => ({
         ...prev,
@@ -254,9 +256,10 @@ export function AdminDashboard() {
     try {
       const newUser = await userService.create({
         name: studentForm.name,
-        PhoneNumber: studentForm.PhoneNumber,
+        phoneNumber: studentForm.PhoneNumber,
         password: studentForm.password,
-        role: 'STUDENT'
+        role: 'STUDENT',
+        xp: 0
       });
       setData(prev => ({
         ...prev,
@@ -315,6 +318,57 @@ export function AdminDashboard() {
 
   const handleSettings = () => {
     setSelectedModal("settings");
+  };
+
+  const handleOpenManageLessons = async (course: any) => {
+    setSelectedCourseForLessons(course);
+    try {
+      const lessons = await lessonService.getByCourse(course.id);
+      setLessonsForSelectedCourse(lessons);
+      setSelectedModal("manageLessons");
+    } catch (err) {
+      console.error("Failed to fetch lessons", err);
+    }
+  };
+
+  const handleAddLesson = async () => {
+    if (!selectedCourseForLessons) return;
+    try {
+      const newLesson = await lessonService.create({
+        courseId: selectedCourseForLessons.id,
+        title: lessonForm.title,
+        description: lessonForm.description,
+        duration: lessonForm.duration,
+        type: lessonForm.type,
+        contentUrl: lessonForm.contentUrl
+      });
+      setLessonsForSelectedCourse(prev => [...prev, newLesson]);
+      setLessonForm({ title: '', description: '', duration: '', type: 'video', contentUrl: '', materialId: '' });
+    } catch (err) {
+      console.error("Failed to add lesson", err);
+    }
+  };
+
+  const handleDeleteLesson = async (lessonId: number) => {
+    try {
+      await lessonService.delete(lessonId);
+      setLessonsForSelectedCourse(prev => prev.filter(l => l.id !== lessonId));
+    } catch (err) {
+      console.error("Failed to delete lesson", err);
+    }
+  };
+
+  const handleMaterialSelect = (materialIdStr: string) => {
+    const matId = parseInt(materialIdStr);
+    const mat = data.materials.find(m => m.id === matId);
+    if (mat) {
+      setLessonForm({
+        ...lessonForm,
+        materialId: materialIdStr,
+        type: mat.type || 'video',
+        contentUrl: mat.url || ''
+      });
+    }
   };
 
   return (
@@ -671,9 +725,9 @@ export function AdminDashboard() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 rounded-full" onClick={() => handleEdit("course", course)}>
-                      <Edit className="w-3 h-3 mr-1" />
-                      {t.edit}
+                    <Button size="sm" variant="outline" className="flex-1 rounded-full text-purple-600 border-purple-200" onClick={() => handleOpenManageLessons(course)}>
+                      <BookOpen className="w-3 h-3 mr-1" />
+                      Steps
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full text-red-600 border-red-200" onClick={() => handleDelete("course", course.id, course.title)}>
                       <Trash2 className="w-3 h-3" />
@@ -1622,6 +1676,137 @@ export function AdminDashboard() {
                   >
                     {t.cancel}
                   </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Manage Lessons Modal */}
+      {selectedModal === "manageLessons" && selectedCourseForLessons && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-black text-gray-900">Manage Lessons</h2>
+                  <p className="text-sm text-gray-500">{selectedCourseForLessons.title}</p>
+                </div>
+                <Button variant="outline" onClick={() => setSelectedModal(null)} className="rounded-full">
+                  {t.close}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left side: List of Steps */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-bold text-gray-900">Current Steps</h3>
+                  <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-2">
+                    {lessonsForSelectedCourse.length === 0 ? (
+                      <p className="text-gray-500 italic">No steps yet. Add one on the right!</p>
+                    ) : (
+                      lessonsForSelectedCourse.map((lesson, idx) => (
+                        <div key={lesson.id} className="p-3 bg-gray-50 border rounded-xl flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full flex items-center justify-center">
+                                {idx + 1}
+                              </span>
+                              <h4 className="font-bold text-gray-900">{lesson.title}</h4>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{lesson.description}</p>
+                            <div className="flex items-center gap-3 mt-2">
+                              <span className="text-[10px] bg-white border px-1.5 py-0.5 rounded text-gray-600">
+                                {lesson.type}
+                              </span>
+                              {lesson.duration && <span className="text-[10px] text-gray-400">{lesson.duration}</span>}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                            onClick={() => handleDeleteLesson(lesson.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Right side: Add Step Form */}
+                <div className="space-y-4 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
+                  <h3 className="text-lg font-bold text-purple-900">Add New Step</h3>
+
+                  <div>
+                    <label className="block text-xs font-bold text-purple-700 mb-1">Step Title</label>
+                    <Input
+                      placeholder="e.g. Introduction to Math"
+                      className="rounded-xl border-purple-200"
+                      value={lessonForm.title}
+                      onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-purple-700 mb-1">Description</label>
+                    <Input
+                      placeholder="What will students learn?"
+                      className="rounded-xl border-purple-200"
+                      value={lessonForm.description}
+                      onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-purple-700 mb-1">Duration</label>
+                      <Input
+                        placeholder="15 min"
+                        className="rounded-xl border-purple-200"
+                        value={lessonForm.duration}
+                        onChange={(e) => setLessonForm({ ...lessonForm, duration: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-purple-700 mb-1">Select Material</label>
+                      <Select value={lessonForm.materialId} onValueChange={handleMaterialSelect}>
+                        <SelectTrigger className="rounded-xl border-purple-200 bg-white">
+                          <SelectValue placeholder="Link material" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {data.materials.length === 0 ? (
+                            <SelectItem value="none" disabled>No materials found</SelectItem>
+                          ) : (
+                            data.materials.map((m: any) => (
+                              <SelectItem key={m.id} value={m.id.toString()}>
+                                {m.name} ({m.type})
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <Button
+                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-bold shadow-md"
+                      onClick={handleAddLesson}
+                      disabled={!lessonForm.title || !lessonForm.contentUrl}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Step to Course
+                    </Button>
+                    {!lessonForm.contentUrl && lessonForm.title && (
+                      <p className="text-[10px] text-red-500 mt-1 text-center font-medium">
+                        Please link a material before adding the step.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
