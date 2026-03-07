@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import {
   Users,
   GraduationCap,
@@ -10,7 +11,7 @@ import {
   Trash2,
   Search,
   Upload,
-  Download,
+  Eye,
   Mail,
   Shield,
   TrendingUp,
@@ -58,7 +59,7 @@ export function AdminDashboard() {
   const [courseForm, setCourseForm] = useState({ title: '', category: '', level: '', description: '', ageRange: '', emoji: '', status: 'draft' });
   const [materialForm, setMaterialForm] = useState({ name: '', type: '', courseId: '', file: null as File | null });
   const [teacherForm, setTeacherForm] = useState({ name: '', email: '', password: 'Password123!', phone: '' });
-  const [studentForm, setStudentForm] = useState({ name: '', email: '', password: 'Password123!', phone: '' });
+  const [studentForm, setStudentForm] = useState({ name: '', email: '', password: 'Password123!', PhoneNumber: '' });
   const [classForm, setClassForm] = useState({ name: '', grade: '', teacherId: '', schedule: '', room: '' });
 
   useEffect(() => {
@@ -102,6 +103,39 @@ export function AdminDashboard() {
 
   const handleEdit = (type: string, item: any) => {
     setEditingItem(item);
+    if (type === 'course') {
+      setCourseForm({
+        title: item.title || '',
+        category: item.category || '',
+        level: item.level || 'Beginner',
+        description: item.description || '',
+        ageRange: item.ageRange || '',
+        emoji: item.imageUrl || '',
+        status: item.status || 'published'
+      });
+    } else if (type === 'teacher') {
+      setTeacherForm({
+        name: item.name || `${item.firstName} ${item.lastName}`,
+        email: item.email || '',
+        password: '',
+        phone: item.phoneNumber || ''
+      });
+    } else if (type === 'student') {
+      setStudentForm({
+        name: item.name || `${item.firstName} ${item.lastName}`,
+        email: item.email || '',
+        password: '',
+        PhoneNumber: item.phoneNumber || ''
+      });
+    } else if (type === 'class') {
+      setClassForm({
+        name: item.name || '',
+        grade: item.grade || '',
+        teacherId: item.teacherId?.toString() || '',
+        schedule: item.schedule || '',
+        room: item.room || ''
+      });
+    }
     setSelectedModal(`edit${type.charAt(0).toUpperCase() + type.slice(1)}`);
   };
 
@@ -160,6 +194,8 @@ export function AdminDashboard() {
         difficultyLevel: courseForm.level,
         targetAgeGroup: courseForm.ageRange,
         imageSource: courseForm.emoji, // Storing emoji in imageSource for now
+        price: 0, // Default price as expected by backend DTO
+        imageUrl: courseForm.emoji // Also mapping emoji to ImageUrl for backend
       });
       // Currently our API endpoint doesn't strictly take 'status', we append to local data
       setData(prev => ({
@@ -170,6 +206,28 @@ export function AdminDashboard() {
       setCourseForm({ title: '', category: '', level: '', description: '', ageRange: '', emoji: '', status: 'draft' }); // reset form
     } catch (err) {
       console.error("Error creating course", err);
+    }
+  };
+
+  const handleUpdateCourse = async () => {
+    try {
+      if (!editingItem) return;
+      const updatedCourse = await courseService.update(editingItem.id, {
+        title: courseForm.title,
+        description: courseForm.description,
+        category: courseForm.category,
+        price: 0,
+        imageUrl: courseForm.emoji
+      });
+      setData(prev => ({
+        ...prev,
+        courses: prev.courses.map(c => c.id === editingItem.id ? { ...c, ...updatedCourse, status: courseForm.status } : c)
+      }));
+      setSelectedModal(null);
+      setEditingItem(null);
+      setCourseForm({ title: '', category: '', level: '', description: '', ageRange: '', emoji: '', status: 'draft' });
+    } catch (err) {
+      console.error("Error updating course", err);
     }
   };
 
@@ -196,7 +254,7 @@ export function AdminDashboard() {
     try {
       const newUser = await userService.create({
         name: studentForm.name,
-        phone: studentForm.phone,
+        PhoneNumber: studentForm.PhoneNumber,
         password: studentForm.password,
         role: 'STUDENT'
       });
@@ -205,7 +263,7 @@ export function AdminDashboard() {
         students: [...prev.students, newUser]
       }));
       setSelectedModal(null);
-      setStudentForm({ name: '', email: '', password: 'Password123!', phone: '' });
+      setStudentForm({ name: '', email: '', password: 'Password123!', PhoneNumber: '' });
     } catch (err) {
       console.error("Error creating student", err);
     }
@@ -216,7 +274,7 @@ export function AdminDashboard() {
       const newClass = await classService.create({
         name: classForm.name,
         grade: classForm.grade,
-        teacherId: parseInt(classForm.teacherId),
+        teacherId: parseInt(classForm.teacherId) || 0,
         schedule: classForm.schedule,
         room: classForm.room
       });
@@ -234,12 +292,13 @@ export function AdminDashboard() {
   const handleUploadMaterial = async () => {
     try {
       if (!materialForm.file) return alert("Please select a file first.");
+      if (!materialForm.courseId) return alert("Please select a course first.");
       const res = await fileService.upload(materialForm.file);
       const newMaterial = await materialService.create({
         name: materialForm.name,
         type: materialForm.type,
         courseId: parseInt(materialForm.courseId),
-        url: res.Url,
+        url: res.url ?? res.Url,
         size: Math.round(materialForm.file.size / 1024) + " KB"
       });
 
@@ -252,7 +311,7 @@ export function AdminDashboard() {
     } catch (err) {
       console.error("Error uploading material", err);
     }
-  }
+  };
 
   const handleSettings = () => {
     setSelectedModal("settings");
@@ -268,7 +327,7 @@ export function AdminDashboard() {
         </div>
         <div className="flex items-center gap-2">
           <Button className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl" onClick={handleExportData}>
-            <Download className="w-4 h-4 mr-2" />
+            <FileText className="w-4 h-4 mr-2" />
             {t.exportData}
           </Button>
           <Button variant="outline" className="rounded-xl" onClick={handleSettings}>
@@ -678,10 +737,22 @@ export function AdminDashboard() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 rounded-full text-xs">
-                      <Download className="w-3 h-3 mr-1" />
-                      {t.download}
-                    </Button>
+                    {material.url ? (
+                      <Link
+                        to={`/material/view?url=${encodeURIComponent(material.url)}&type=${encodeURIComponent(material.type || '')}&name=${encodeURIComponent(material.name)}`}
+                        className="flex-1"
+                      >
+                        <Button size="sm" variant="outline" className="w-full rounded-full text-xs text-purple-700 border-purple-200 hover:bg-purple-50">
+                          <Eye className="w-3 h-3 mr-1" />
+                          View
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button size="sm" variant="outline" className="flex-1 rounded-full text-xs" disabled>
+                        <Eye className="w-3 h-3 mr-1" />
+                        No File
+                      </Button>
+                    )}
                     <Button size="sm" variant="outline" className="rounded-full text-red-600 border-red-200" onClick={() => handleDelete("material", material.id, material.name)}>
                       <Trash2 className="w-3 h-3" />
                     </Button>
@@ -812,7 +883,7 @@ export function AdminDashboard() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       {t.contact}
                     </label>
-                    <Input type="text" placeholder="987654321" className="rounded-xl" value={studentForm.phone} onChange={(e) => setStudentForm({ ...studentForm, phone: e.target.value })} />
+                    <Input type="text" placeholder="987654321" className="rounded-xl" value={studentForm.PhoneNumber} onChange={(e) => setStudentForm({ ...studentForm, PhoneNumber: e.target.value })} />
                   </div>
                 </div>
 
@@ -1102,6 +1173,144 @@ export function AdminDashboard() {
         </div>
       )}
 
+      {/* Edit Course Modal */}
+      {selectedModal === "editCourse" && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-black text-gray-900">{t.editCourse}</h2>
+                <Button variant="outline" onClick={() => setSelectedModal(null)} className="rounded-full">
+                  {t.close}
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {t.courseTitle}
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Math Adventures"
+                    className="rounded-xl"
+                    value={courseForm.title}
+                    onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t.category}
+                    </label>
+                    <Select value={courseForm.category} onValueChange={(val) => setCourseForm({ ...courseForm, category: val })}>
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Math">Math</SelectItem>
+                        <SelectItem value="Science">Science</SelectItem>
+                        <SelectItem value="Reading">Reading</SelectItem>
+                        <SelectItem value="Writing">Writing</SelectItem>
+                        <SelectItem value="Art">Art</SelectItem>
+                        <SelectItem value="Music">Music</SelectItem>
+                        <SelectItem value="Coding">Coding</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t.level}
+                    </label>
+                    <Select value={courseForm.level} onValueChange={(val) => setCourseForm({ ...courseForm, level: val })}>
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Beginner">Beginner</SelectItem>
+                        <SelectItem value="Intermediate">Intermediate</SelectItem>
+                        <SelectItem value="Advanced">Advanced</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {t.description}
+                  </label>
+                  <textarea
+                    className="w-full border-2 rounded-xl p-3 min-h-[100px]"
+                    placeholder="Enter course description..."
+                    value={courseForm.description}
+                    onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t.ageRange}
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="6-8"
+                      className="rounded-xl"
+                      value={courseForm.ageRange}
+                      onChange={(e) => setCourseForm({ ...courseForm, ageRange: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t.emoji}
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="🔢"
+                      className="rounded-xl"
+                      value={courseForm.emoji}
+                      onChange={(e) => setCourseForm({ ...courseForm, emoji: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    {t.active}
+                  </label>
+                  <Select value={courseForm.status} onValueChange={(val) => setCourseForm({ ...courseForm, status: val })}>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">{t.draft}</SelectItem>
+                      <SelectItem value="published">{t.published}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl"
+                    onClick={handleUpdateCourse}
+                  >
+                    {t.saveChanges}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => setSelectedModal(null)}
+                  >
+                    {t.cancel}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Upload Material Modal */}
       {selectedModal === "uploadMaterial" && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1305,7 +1514,7 @@ export function AdminDashboard() {
                       setSelectedModal(null);
                     }}
                   >
-                    <Download className="w-4 h-4 mr-2" />
+                    <FileText className="w-4 h-4 mr-2" />
                     {t.export}
                   </Button>
                   <Button

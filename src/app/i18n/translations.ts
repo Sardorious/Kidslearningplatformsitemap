@@ -7,7 +7,7 @@ export const translations = {
     parentView: "Parent View",
     teacherView: "Teacher View",
     adminView: "Admin View",
-    
+
     // Home Page
     welcomeBack: "Welcome back",
     learningStreak: "You're on a {streak}-day learning streak! Keep it up!",
@@ -22,7 +22,7 @@ export const translations = {
     progress: "Progress",
     continueLearningBtn: "Continue Learning",
     recentAchievements: "Recent Achievements",
-    
+
     // Course Catalog
     exploreCourses: "Explore Courses",
     findPerfectCourse: "Find the perfect course to start your learning journey!",
@@ -42,7 +42,7 @@ export const translations = {
     noCourses: "No courses found",
     tryAdjusting: "Try adjusting your filters to see more results",
     clearFilters: "Clear Filters",
-    
+
     // Lesson Player
     backToCourses: "Back to Courses",
     lesson: "Lesson",
@@ -59,7 +59,7 @@ export const translations = {
     interactiveLesson: "interactive",
     quizLesson: "quiz",
     readingLesson: "reading",
-    
+
     // Student Dashboard
     learningChampion: "Learning Champion",
     activeCourses: "Active Courses",
@@ -74,7 +74,7 @@ export const translations = {
     almostThere: "You're almost there! Keep going!",
     weeklyLeaderboard: "Weekly Leaderboard",
     you: "You!",
-    
+
     // Parent Dashboard
     parentDashboard: "Parent Dashboard",
     monitorChildren: "Monitor your children's learning progress",
@@ -103,7 +103,7 @@ export const translations = {
     overview: "Overview",
     performance: "Performance",
     activity: "Activity",
-    
+
     // Teacher Dashboard
     teacherDashboard: "Teacher Dashboard",
     manageStudentsAndAssignments: "Manage students and assignments",
@@ -147,7 +147,7 @@ export const translations = {
     cancel: "Cancel",
     completed: "Completed",
     pending: "Pending",
-    
+
     // Admin Dashboard
     adminDashboard: "Admin Dashboard",
     manageEntirePlatform: "Manage the entire platform",
@@ -179,6 +179,8 @@ export const translations = {
     room: "Room",
     schedule: "Schedule",
     addCourse: "Add Course",
+    editCourse: "Edit Course",
+    saveChanges: "Save Changes",
     published: "Published",
     draft: "Draft",
     enrolledStudents: "Enrolled",
@@ -192,7 +194,6 @@ export const translations = {
     interactive: "Interactive",
     uploadMaterial: "Upload Material",
     download: "Download",
-    close: "Close",
     fullName: "Full Name",
     role: "Role",
     assignClasses: "Assign Classes",
@@ -233,12 +234,12 @@ export const translations = {
     sessionTimeout: "Session Timeout",
     minutes: "minutes",
     saveSettings: "Save Settings",
-    
+
     // Not Found
     pageNotFound: "Oops! Page Not Found",
     couldntFind: "We couldn't find the page you're looking for.",
     goBackHome: "Go Back Home",
-    
+
     // Course Categories & Data
     math: "Math",
     science: "Science",
@@ -246,13 +247,13 @@ export const translations = {
     art: "Art",
     music: "Music",
     technology: "Technology",
-    
+
     // Levels
     beginner: "Beginner",
     intermediate: "Intermediate",
     advanced: "Advanced",
     allLevelsText: "All Levels",
-    
+
     // Days
     today: "Today",
     yesterday: "Yesterday",
@@ -265,7 +266,7 @@ export const translations = {
     sat: "Sat",
     sun: "Sun",
   },
-  
+
   ru: {
     // Layout
     home: "Главная",
@@ -274,7 +275,7 @@ export const translations = {
     parentView: "Для родителей",
     teacherView: "Для учителей",
     adminView: "Для админов",
-    
+
     // Home Page
     welcomeBack: "С возвращением",
     learningStreak: "У вас серия из {streak} дней обучения! Так держать!",
@@ -289,7 +290,7 @@ export const translations = {
     progress: "Прогресс",
     continueLearningBtn: "Продолжить",
     recentAchievements: "Последние достижения",
-    
+
     // Course Catalog
     exploreCourses: "Обзор урсов",
     findPerfectCourse: "Найдите идеальный курс для начала обучения!",
@@ -309,7 +310,7 @@ export const translations = {
     noCourses: "урсы не найдены",
     tryAdjusting: "Попробуйте изменить фильтры для просмотра результатов",
     clearFilters: "Очистить фильтры",
-    
+
     // Lesson Player
     backToCourses: "К курсам",
     lesson: "Урок",
@@ -326,7 +327,7 @@ export const translations = {
     interactiveLesson: "интерактив",
     quizLesson: "тест",
     readingLesson: "чтение",
-    
+
     // Student Dashboard
     learningChampion: "Чемпион по обучению",
     activeCourses: "Активные курсы",
@@ -341,7 +342,7 @@ export const translations = {
     almostThere: "Вы почти у цели! Продолжайте!",
     weeklyLeaderboard: "Лидеры недели",
     you: "Вы!",
-    
+
     // Parent Dashboard
     parentDashboard: "Панель родителя",
     monitorChildren: "Следите за успехами ваших детей",
@@ -370,7 +371,7 @@ export const translations = {
     overview: "Обзор",
     performance: "Успеваемость",
     activity: "Активность",
-    
+
     // Teacher Dashboard
     teacherDashboard: "Панель учителя",
     manageStudentsAndAssignments: "Управление учениками и заданиями",
@@ -414,7 +415,7 @@ export const translations = {
     cancel: "Отмена",
     completed: "Завершено",
     pending: "Ожидает",
-    
+
     // Admin Dashboard
     adminDashboard: "Панель администратора",
     manageEntirePlatform: "Управление всей платформой",
@@ -446,6 +447,8 @@ export const translations = {
     room: "Кабинет",
     schedule: "Расписание",
     addCourse: "Добавить курс",
+    editCourse: "Редактировать курс",
+    saveChanges: "Сохранить изменения",
     published: "Опубликован",
     draft: "Черновик",
     enrolledStudents: "Записано",
@@ -459,7 +462,6 @@ export const translations = {
     interactive: "Интерактивный",
     uploadMaterial: "Загрузить материал",
     download: "Скачать",
-    close: "Закрыть",
     fullName: "Полное имя",
     role: "Роль",
     assignClasses: "Назначить классы",
@@ -500,12 +502,12 @@ export const translations = {
     sessionTimeout: "Таймаут сессии",
     minutes: "минуты",
     saveSettings: "Сохранить настройки",
-    
+
     // Not Found
     pageNotFound: "Упс! Страница не найдена",
     couldntFind: "Мы не смогли найти запрашиваемую страницу.",
     goBackHome: "Вернуться на главную",
-    
+
     // Course Categories & Data
     math: "Математика",
     science: "Наука",
@@ -513,13 +515,13 @@ export const translations = {
     art: "Искусство",
     music: "Музыка",
     technology: "Технология",
-    
+
     // Levels
     beginner: "Начальный",
     intermediate: "Средний",
     advanced: "Продвинутый",
     allLevelsText: "Все уровни",
-    
+
     // Days
     today: "Сегодня",
     yesterday: "Вчера",
@@ -532,7 +534,7 @@ export const translations = {
     sat: "Сб",
     sun: "Вс",
   },
-  
+
   uz: {
     // Layout
     home: "Bosh sahifa",
@@ -541,7 +543,7 @@ export const translations = {
     parentView: "Ota-ona uchun",
     teacherView: "O'qituvchi uchun",
     adminView: "Admin uchun",
-    
+
     // Home Page
     welcomeBack: "Xush kelibsiz",
     learningStreak: "Siz {streak} kun ketma-ket o'qiyapsiz! Davom eting!",
@@ -556,7 +558,7 @@ export const translations = {
     progress: "Taraqqiyot",
     continueLearningBtn: "Davom etish",
     recentAchievements: "Oxirgi yutuqlar",
-    
+
     // Course Catalog
     exploreCourses: "Kurslarni ko'rish",
     findPerfectCourse: "O'qishni boshlash uchun mukammal kursni toping!",
@@ -576,7 +578,7 @@ export const translations = {
     noCourses: "Kurslar topilmadi",
     tryAdjusting: "Natijalarni ko'rish uchun filtrlarni o'zgartiring",
     clearFilters: "Filtrlarni tozalash",
-    
+
     // Lesson Player
     backToCourses: "Kurslarga qaytish",
     lesson: "Dars",
@@ -593,7 +595,7 @@ export const translations = {
     interactiveLesson: "interaktiv",
     quizLesson: "test",
     readingLesson: "o'qish",
-    
+
     // Student Dashboard
     learningChampion: "O'qish chempioni",
     activeCourses: "Faol kurslar",
@@ -608,7 +610,7 @@ export const translations = {
     almostThere: "Siz deyarli maqsadga yetdingiz! Davom eting!",
     weeklyLeaderboard: "Haftalik liderlar",
     you: "Siz!",
-    
+
     // Parent Dashboard
     parentDashboard: "Ota-ona paneli",
     monitorChildren: "Farzandlaringizning muvaffaqiyatlarini kuzatib boring",
@@ -637,7 +639,7 @@ export const translations = {
     overview: "Umumiy ko'rinish",
     performance: "Natijalar",
     activity: "Faoliyat",
-    
+
     // Teacher Dashboard
     teacherDashboard: "O'qituvchi paneli",
     manageStudentsAndAssignments: "O'quvchilar va topshiriqlarni boshqarish",
@@ -681,7 +683,7 @@ export const translations = {
     cancel: "Bekor qilish",
     completed: "Tugallangan",
     pending: "Kutilmoqda",
-    
+
     // Admin Dashboard
     adminDashboard: "Admin paneli",
     manageEntirePlatform: "Butun platformani boshqarish",
@@ -713,6 +715,8 @@ export const translations = {
     room: "Xona",
     schedule: "Jadval",
     addCourse: "Kurs qo'shish",
+    editCourse: "Kursni tahrirlash",
+    saveChanges: "O'zgarishlarni saqlash",
     published: "Nashr qilingan",
     draft: "Qoralama",
     enrolledStudents: "Ro'yxatdan o'tgan",
@@ -726,7 +730,6 @@ export const translations = {
     interactive: "Interaktiv",
     uploadMaterial: "Material yuklash",
     download: "Yuklab olish",
-    close: "Yopish",
     fullName: "To'liq ism",
     role: "Rol",
     assignClasses: "Sinflarni tayinlash",
@@ -767,12 +770,12 @@ export const translations = {
     sessionTimeout: "Sessiya muddati tugashi",
     minutes: "daqiqa",
     saveSettings: "Sozlamalarni saqlash",
-    
+
     // Not Found
     pageNotFound: "Voy! Sahifa topilmadi",
     couldntFind: "Biz siz qidirayotgan sahifani topa olmadik.",
     goBackHome: "Bosh sahifaga qaytish",
-    
+
     // Course Categories & Data
     math: "Matematika",
     science: "Fan",
@@ -780,13 +783,13 @@ export const translations = {
     art: "San'at",
     music: "Musiqa",
     technology: "Texnologiya",
-    
+
     // Levels
     beginner: "Boshlang'ich",
     intermediate: "O'rta",
     advanced: "Ilg'or",
     allLevelsText: "Barcha darajalar",
-    
+
     // Days
     today: "Bugun",
     yesterday: "Kecha",
