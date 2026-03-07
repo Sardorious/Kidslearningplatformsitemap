@@ -64,6 +64,7 @@ export function AdminDashboard() {
   const [selectedCourseForLessons, setSelectedCourseForLessons] = useState<any>(null);
   const [lessonsForSelectedCourse, setLessonsForSelectedCourse] = useState<any[]>([]);
   const [lessonForm, setLessonForm] = useState({ title: '', description: '', duration: '', type: 'video', contentUrl: '', materialId: '' });
+  const [editingLesson, setEditingLesson] = useState<any>(null);
 
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -353,8 +354,45 @@ export function AdminDashboard() {
     try {
       await lessonService.delete(lessonId);
       setLessonsForSelectedCourse(prev => prev.filter(l => l.id !== lessonId));
+      if (editingLesson?.id === lessonId) {
+        setEditingLesson(null);
+        setLessonForm({ title: '', description: '', duration: '', type: 'video', contentUrl: '', materialId: '' });
+      }
     } catch (err) {
       console.error("Failed to delete lesson", err);
+    }
+  };
+
+  const handleEditLesson = (lesson: any) => {
+    setEditingLesson(lesson);
+    setLessonForm({
+      title: lesson.title || lesson.Title || '',
+      description: lesson.description || lesson.Description || lesson.content || lesson.Content || '',
+      duration: lesson.duration || lesson.Duration || '',
+      type: lesson.type || lesson.Type || 'video',
+      contentUrl: lesson.contentUrl || lesson.ContentUrl || lesson.videoUrl || lesson.VideoUrl || '',
+      materialId: ''
+    });
+  };
+
+  const handleUpdateLesson = async () => {
+    if (!editingLesson) return;
+    try {
+      const updated = await lessonService.update(editingLesson.id, {
+        courseId: selectedCourseForLessons.id,
+        title: lessonForm.title,
+        description: lessonForm.description,
+        duration: lessonForm.duration,
+        type: lessonForm.type,
+        contentUrl: lessonForm.contentUrl
+      });
+      setLessonsForSelectedCourse(prev =>
+        prev.map(l => l.id === editingLesson.id ? { ...l, ...updated, title: lessonForm.title, description: lessonForm.description, duration: lessonForm.duration, type: lessonForm.type, contentUrl: lessonForm.contentUrl } : l)
+      );
+      setEditingLesson(null);
+      setLessonForm({ title: '', description: '', duration: '', type: 'video', contentUrl: '', materialId: '' });
+    } catch (err) {
+      console.error("Failed to update lesson", err);
     }
   };
 
@@ -1707,55 +1745,82 @@ export function AdminDashboard() {
                       <p className="text-gray-500 italic">No steps yet. Add one on the right!</p>
                     ) : (
                       lessonsForSelectedCourse.map((lesson, idx) => (
-                        <div key={lesson.id} className="p-3 bg-gray-50 border rounded-xl flex items-start justify-between">
-                          <div>
+                        <div key={lesson.id} className={`p-3 border rounded-xl flex items-start justify-between transition-colors ${editingLesson?.id === lesson.id ? 'bg-purple-50 border-purple-300' : 'bg-gray-50'}`}>
+                          <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full flex items-center justify-center">
+                              <span className="w-5 h-5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full flex items-center justify-center shrink-0">
                                 {idx + 1}
                               </span>
-                              <h4 className="font-bold text-gray-900">{lesson.title}</h4>
+                              <h4 className="font-bold text-gray-900 truncate">{lesson.title || lesson.Title}</h4>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">{lesson.description}</p>
+                            <p className="text-xs text-gray-500 mt-1">{lesson.description || lesson.Description || lesson.content || lesson.Content}</p>
                             <div className="flex items-center gap-3 mt-2">
-                              <span className="text-[10px] bg-white border px-1.5 py-0.5 rounded text-gray-600">
-                                {lesson.type}
+                              <span className="text-[10px] bg-white border px-1.5 py-0.5 rounded text-gray-600 capitalize">
+                                {lesson.type || lesson.Type || 'video'}
                               </span>
-                              {lesson.duration && <span className="text-[10px] text-gray-400">{lesson.duration}</span>}
+                              {(lesson.duration || lesson.Duration) && <span className="text-[10px] text-gray-400">{lesson.duration || lesson.Duration}</span>}
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
-                            onClick={() => handleDeleteLesson(lesson.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-1 shrink-0 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-purple-600 hover:text-purple-800 hover:bg-purple-100 h-8 w-8 p-0"
+                              onClick={() => handleEditLesson(lesson)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                              onClick={() => handleDeleteLesson(lesson.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))
                     )}
                   </div>
                 </div>
 
-                {/* Right side: Add Step Form */}
-                <div className="space-y-4 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
-                  <h3 className="text-lg font-bold text-purple-900">Add New Step</h3>
+                {/* Right side: Add/Edit Step Form */}
+                <div className={`space-y-4 p-4 rounded-2xl border ${editingLesson ? 'bg-amber-50/60 border-amber-200' : 'bg-purple-50/50 border-purple-100'}`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className={`text-lg font-bold ${editingLesson ? 'text-amber-900' : 'text-purple-900'}`}>
+                      {editingLesson ? '✏️ Edit Step' : 'Add New Step'}
+                    </h3>
+                    {editingLesson && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-500 hover:bg-gray-100 text-xs px-2 h-7"
+                        onClick={() => {
+                          setEditingLesson(null);
+                          setLessonForm({ title: '', description: '', duration: '', type: 'video', contentUrl: '', materialId: '' });
+                        }}
+                      >
+                        Cancel Edit
+                      </Button>
+                    )}
+                  </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-purple-700 mb-1">Step Title</label>
+                    <label className={`block text-xs font-bold mb-1 ${editingLesson ? 'text-amber-700' : 'text-purple-700'}`}>Step Title</label>
                     <Input
                       placeholder="e.g. Introduction to Math"
-                      className="rounded-xl border-purple-200"
+                      className={`rounded-xl ${editingLesson ? 'border-amber-200' : 'border-purple-200'}`}
                       value={lessonForm.title}
                       onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-purple-700 mb-1">Description</label>
+                    <label className={`block text-xs font-bold mb-1 ${editingLesson ? 'text-amber-700' : 'text-purple-700'}`}>Description</label>
                     <Input
                       placeholder="What will students learn?"
-                      className="rounded-xl border-purple-200"
+                      className={`rounded-xl ${editingLesson ? 'border-amber-200' : 'border-purple-200'}`}
                       value={lessonForm.description}
                       onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
                     />
@@ -1763,48 +1828,82 @@ export function AdminDashboard() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-purple-700 mb-1">Duration</label>
+                      <label className={`block text-xs font-bold mb-1 ${editingLesson ? 'text-amber-700' : 'text-purple-700'}`}>Duration</label>
                       <Input
                         placeholder="15 min"
-                        className="rounded-xl border-purple-200"
+                        className={`rounded-xl ${editingLesson ? 'border-amber-200' : 'border-purple-200'}`}
                         value={lessonForm.duration}
                         onChange={(e) => setLessonForm({ ...lessonForm, duration: e.target.value })}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-purple-700 mb-1">Select Material</label>
-                      <Select value={lessonForm.materialId} onValueChange={handleMaterialSelect}>
-                        <SelectTrigger className="rounded-xl border-purple-200 bg-white">
-                          <SelectValue placeholder="Link material" />
+                      <label className={`block text-xs font-bold mb-1 ${editingLesson ? 'text-amber-700' : 'text-purple-700'}`}>Type</label>
+                      <Select value={lessonForm.type} onValueChange={(val) => setLessonForm({ ...lessonForm, type: val })}>
+                        <SelectTrigger className={`rounded-xl bg-white ${editingLesson ? 'border-amber-200' : 'border-purple-200'}`}>
+                          <SelectValue placeholder="Type" />
                         </SelectTrigger>
                         <SelectContent>
-                          {data.materials.length === 0 ? (
-                            <SelectItem value="none" disabled>No materials found</SelectItem>
-                          ) : (
-                            data.materials.map((m: any) => (
-                              <SelectItem key={m.id} value={m.id.toString()}>
-                                {m.name} ({m.type})
-                              </SelectItem>
-                            ))
-                          )}
+                          <SelectItem value="video">Video</SelectItem>
+                          <SelectItem value="audio">Audio</SelectItem>
+                          <SelectItem value="pdf">PDF</SelectItem>
+                          <SelectItem value="document">Document</SelectItem>
+                          <SelectItem value="reading">Reading</SelectItem>
+                          <SelectItem value="quiz">Quiz</SelectItem>
+                          <SelectItem value="interactive">Interactive</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
 
-                  <div className="pt-2">
-                    <Button
-                      className="w-full bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-bold shadow-md"
-                      onClick={handleAddLesson}
-                      disabled={!lessonForm.title || !lessonForm.contentUrl}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Step to Course
-                    </Button>
-                    {!lessonForm.contentUrl && lessonForm.title && (
-                      <p className="text-[10px] text-red-500 mt-1 text-center font-medium">
-                        Please link a material before adding the step.
-                      </p>
+                  <div>
+                    <label className={`block text-xs font-bold mb-1 ${editingLesson ? 'text-amber-700' : 'text-purple-700'}`}>Content URL</label>
+                    <Input
+                      placeholder="https://..."
+                      className={`rounded-xl ${editingLesson ? 'border-amber-200' : 'border-purple-200'}`}
+                      value={lessonForm.contentUrl}
+                      onChange={(e) => setLessonForm({ ...lessonForm, contentUrl: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-bold mb-1 ${editingLesson ? 'text-amber-700' : 'text-purple-700'}`}>Or Link a Material</label>
+                    <Select value={lessonForm.materialId} onValueChange={handleMaterialSelect}>
+                      <SelectTrigger className={`rounded-xl bg-white ${editingLesson ? 'border-amber-200' : 'border-purple-200'}`}>
+                        <SelectValue placeholder="Link material" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {data.materials.length === 0 ? (
+                          <SelectItem value="none" disabled>No materials found</SelectItem>
+                        ) : (
+                          data.materials.map((m: any) => (
+                            <SelectItem key={m.id} value={m.id.toString()}>
+                              {m.name} ({m.type})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="pt-2 flex gap-2">
+                    {editingLesson ? (
+                      <Button
+                        className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl font-bold shadow-md"
+                        onClick={handleUpdateLesson}
+                        disabled={!lessonForm.title}
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Save Changes
+                      </Button>
+                    ) : (
+                      <Button
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-bold shadow-md"
+                        onClick={handleAddLesson}
+                        disabled={!lessonForm.title}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Step to Course
+                      </Button>
                     )}
                   </div>
                 </div>

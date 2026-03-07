@@ -49,16 +49,37 @@ export function LessonPlayer() {
         setCourse(normalizedCourse);
 
         // Normalize lessons data
-        const normalizedLessons = (lessonsData || []).map((l: any) => ({
-          ...l,
-          id: l.id ?? l.Id,
-          title: l.title ?? l.Title,
-          description: l.description ?? l.Description,
-          type: (l.type ?? l.Type ?? "video").toLowerCase(),
-          contentUrl: l.contentUrl ?? l.ContentUrl ?? l.url ?? l.Url,
-          duration: l.duration ?? l.Duration,
-          completed: l.completed ?? l.Completed
-        }));
+        const normalizedLessons = (lessonsData || []).map((l: any) => {
+          const rawType = (l.type ?? l.Type ?? '').toLowerCase().trim();
+          const videoUrl = l.videoUrl ?? l.VideoUrl ?? '';
+          const contentUrl = l.contentUrl ?? l.ContentUrl ?? l.url ?? l.Url ?? videoUrl ?? '';
+          const content = l.content ?? l.Content ?? '';
+
+          // Smart type detection: use explicit type if set, otherwise infer from URL
+          let resolvedType = rawType;
+          if (!resolvedType) {
+            const url = contentUrl.toLowerCase();
+            if (url.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/)) resolvedType = 'video';
+            else if (url.match(/\.(mp3|wav|ogg|aac|m4a)(\?.*)?$/)) resolvedType = 'audio';
+            else if (url.match(/\.pdf(\?.*)?$/)) resolvedType = 'pdf';
+            else if (url.match(/\.(doc|docx)(\?.*)?$/)) resolvedType = 'document';
+            else if (videoUrl) resolvedType = 'video';
+            else if (content) resolvedType = 'reading';
+            else resolvedType = 'video';
+          }
+
+          return {
+            ...l,
+            id: l.id ?? l.Id,
+            title: l.title ?? l.Title,
+            description: l.description ?? l.Description ?? content,
+            type: resolvedType,
+            contentUrl: contentUrl,
+            duration: l.duration ?? l.Duration,
+            completed: l.completed ?? l.Completed
+          };
+        });
+
 
         setCourseLessons(normalizedLessons);
 
@@ -112,6 +133,8 @@ export function LessonPlayer() {
   const isLessonLocked = (index: number) => {
     if (index === 0) return false;
     // Locked if the previous lesson is not completed
+    // Bypass lock for easier testing of different material types
+    if (localStorage.getItem('bypassLocks') === 'true') return false;
     return !courseLessons[index - 1]?.completed;
   };
 
@@ -122,8 +145,10 @@ export function LessonPlayer() {
       case "quiz": return FileQuestion;
       case "reading": return BookOpen;
       case "listening": return BookOpen;
+      case "audio": return Play;
       case "pdf":
-      case "document": return FileText;
+      case "document":
+      case "doc": return FileText;
       default: return Play;
     }
   };
@@ -134,8 +159,10 @@ export function LessonPlayer() {
     quiz: "text-amber-600 bg-amber-50",
     reading: "text-emerald-600 bg-emerald-50",
     listening: "text-blue-600 bg-blue-50",
+    audio: "text-indigo-600 bg-indigo-50",
     pdf: "text-red-600 bg-red-50",
     document: "text-blue-600 bg-blue-50",
+    doc: "text-blue-600 bg-blue-50",
     default: "text-gray-600 bg-gray-100",
   };
 
@@ -148,14 +175,7 @@ export function LessonPlayer() {
         newLessons[currentLessonIndex].completed = true;
         setCourseLessons(newLessons);
 
-        let newXp = earnedXp + xpPerLesson;
-        const potentialTotal = (currentLessonIndex + 1) * xpPerLesson + newXp;
-
-        // Give bonus completion XP if reaching threshold
-        if (potentialTotal >= 85 && !showCompletionMessage) {
-          newXp += potentialTotal; // Bonus equal to current xp
-          setShowCompletionMessage(true);
-        }
+        const newXp = earnedXp + xpPerLesson;
         setEarnedXp(newXp);
       }
     } catch (err) {
@@ -171,6 +191,26 @@ export function LessonPlayer() {
     }
   };
 
+  const handleFinishCourse = async () => {
+    try {
+      setCompleting(true);
+      if (!currentLesson.completed) {
+        await userService.completeLesson({ lessonId: currentLesson.id });
+        const newLessons = [...courseLessons];
+        newLessons[currentLessonIndex].completed = true;
+        setCourseLessons(newLessons);
+        const newXp = earnedXp + xpPerLesson;
+        setEarnedXp(newXp);
+      }
+      setShowCompletionMessage(true);
+    } catch (err) {
+      console.error("Failed to complete course", err);
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+
   const handlePrevious = () => {
     if (currentLessonIndex > 0) {
       setCurrentLessonIndex(currentLessonIndex - 1);
@@ -183,29 +223,29 @@ export function LessonPlayer() {
   const typeColor = lessonTypeColors[currentLesson.type] || lessonTypeColors.default;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="max-w-6xl mx-auto space-y-4 px-3 sm:px-4 md:px-6">
       {/* Breadcrumb + Mobile Sidebar Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Link to="/courses" className="hover:text-purple-600 transition-colors flex items-center gap-1">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 text-sm text-gray-500 min-w-0 flex-1">
+          <Link to="/courses" className="hover:text-purple-600 transition-colors flex items-center gap-1 shrink-0">
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">{t.backToCourses}</span>
             <span className="sm:hidden">Back</span>
           </Link>
-          <span>/</span>
-          <span className="text-gray-900 font-semibold truncate max-w-[160px] sm:max-w-xs">{course.title}</span>
-          <span className="ml-4 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold text-xs flex items-center gap-1">
-            🏆 {totalXp} XP Minimum 100 XP
+          <span className="shrink-0">/</span>
+          <span className="text-gray-900 font-semibold truncate">{course.title}</span>
+          <span className="shrink-0 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full font-bold text-xs flex items-center gap-1 whitespace-nowrap">
+            🏆 {totalXp} XP
           </span>
         </div>
 
         {/* Mobile lesson list toggle */}
         <button
-          className="lg:hidden flex items-center gap-2 bg-white border border-purple-200 text-purple-700 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm"
+          className="md:hidden flex items-center gap-1.5 bg-white border border-purple-200 text-purple-700 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-sm shrink-0"
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
           {sidebarOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          Lessons ({currentLessonIndex + 1}/{courseLessons.length})
+          {currentLessonIndex + 1}/{courseLessons.length}
         </button>
       </div>
 
@@ -226,11 +266,28 @@ export function LessonPlayer() {
         <Progress value={progress} className="h-2.5 bg-white/20" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Lesson Sidebar — mobile collapsible, desktop always visible */}
-        <div className={`${sidebarOpen ? "block" : "hidden"} lg:block lg:col-span-1`}>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Lesson Sidebar — mobile overlay, desktop always visible */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/40 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        <div className={`${sidebarOpen
+            ? 'fixed top-16 left-0 right-0 z-50 px-3 pb-4 md:static md:px-0 md:pb-0 md:z-auto'
+            : 'hidden md:block'
+          } md:col-span-1`}>
           <Card className="p-4 rounded-2xl border border-gray-100 shadow-sm">
-            <h2 className="text-base font-black text-gray-900 mb-3">{t.courseLessons}</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-black text-gray-900">{t.courseLessons}</h2>
+              <button
+                className="md:hidden p-1 text-gray-400 hover:text-gray-700 rounded-lg"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
             <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
               {courseLessons.map((lesson, index) => {
                 const LessonIcon = getLessonIcon(lesson.type);
@@ -263,7 +320,7 @@ export function LessonPlayer() {
                       </div>
                       <div className={`text-xs flex items-center gap-1.5 mt-0.5 ${isActive ? "text-white/80" : "text-gray-400"}`}>
                         <LessonIcon className="w-3 h-3" />
-                        <span>{lesson.type}</span>
+                        <span className="capitalize">{lesson.type}</span>
                         {lesson.duration && <><span>·</span><span>{lesson.duration}</span></>}
                       </div>
                     </div>
@@ -275,30 +332,38 @@ export function LessonPlayer() {
         </div>
 
         {/* Lesson Content */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="md:col-span-2 space-y-4 min-w-0">
           {/* Video/Content Area */}
           <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
-            <div className={`bg-gradient-to-br from-gray-900 to-gray-800 ${(currentLesson.type === 'pdf' || currentLesson.type === 'document') ? 'h-[600px]' : 'aspect-video'} flex items-center justify-center relative`}>
+            <div className={`bg-gradient-to-br from-gray-900 to-gray-800 ${['pdf', 'document', 'doc'].includes(currentLesson.type) ? 'h-[600px]' :
+              currentLesson.type === 'audio' ? 'h-[280px]' : 'aspect-video'
+              } flex items-center justify-center relative`}>
+
               {currentLesson.type === "video" && (
-                currentLesson.contentUrl ? (
-                  <video
-                    controls
-                    playsInline
-                    src={currentLesson.contentUrl}
-                    className="w-full h-full object-contain"
-                    poster={course.imageUrl || course.image}
-                  >
-                    Your browser does not support the video tag.
-                  </video>
-                ) : (
-                  <>
-                    <img src={course.imageUrl || course.image || "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80"} alt={currentLesson.title} className="absolute inset-0 w-full h-full object-cover opacity-40" />
-                    <button className="relative z-10 w-16 h-16 md:w-20 md:h-20 bg-white/90 rounded-full flex items-center justify-center hover:bg-white hover:scale-110 transition-all shadow-2xl">
-                      <Play className="w-8 h-8 md:w-10 md:h-10 text-purple-600 ml-1 fill-purple-600" />
-                    </button>
-                  </>
-                )
+                (() => {
+                  const videoSrc = currentLesson.contentUrl || currentLesson.videoUrl || currentLesson.VideoUrl;
+                  return videoSrc ? (
+                    <video
+                      controls
+                      playsInline
+                      src={videoSrc}
+                      className="w-full h-full object-contain"
+                      poster={course.imageUrl || course.image}
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <>
+                      <img src={course.imageUrl || course.image || "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80"} alt={currentLesson.title} className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                      <div className="relative z-10 text-center">
+                        <p className="text-white font-bold text-lg">{currentLesson.title}</p>
+                        <p className="text-gray-300 text-sm mt-2">No video URL configured. Edit this step in Admin → Courses → Steps.</p>
+                      </div>
+                    </>
+                  );
+                })()
               )}
+
               {currentLesson.type === "interactive" && (
                 <div className="text-center p-8">
                   <Gamepad2 className="w-16 h-16 text-purple-400 mx-auto mb-3" />
@@ -327,10 +392,29 @@ export function LessonPlayer() {
                   <p className="text-gray-300 mt-1 text-sm">Listen carefully and learn!</p>
                 </div>
               )}
-              {(currentLesson.type === "pdf" || currentLesson.type === "document") && (
+              {currentLesson.type === "audio" && (
+                <div className="text-center p-8 w-full">
+                  <Play className="w-16 h-16 text-indigo-400 mx-auto mb-4" />
+                  <p className="text-white text-xl font-bold mb-6">Audio Lesson 🎵</p>
+                  {currentLesson.contentUrl ? (
+                    <div className="max-w-md mx-auto bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
+                      <audio
+                        controls
+                        src={currentLesson.contentUrl}
+                        className="w-full"
+                      >
+                        Your browser does not support the audio element.
+                      </audio>
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 mt-1 text-sm">Audio content not available.</p>
+                  )}
+                </div>
+              )}
+              {["pdf", "document", "doc"].includes(currentLesson.type) && (
                 currentLesson.contentUrl ? (
                   <iframe
-                    src={currentLesson.contentUrl}
+                    src={currentLesson.type === 'doc' ? `https://docs.google.com/gview?url=${currentLesson.contentUrl}&embedded=true` : currentLesson.contentUrl}
                     className="w-full h-full border-0 rounded-b-2xl bg-white"
                     title="Document Viewer"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -388,43 +472,59 @@ export function LessonPlayer() {
                   <span className="sm:hidden">Prev</span>
                 </Button>
 
-                <Button
-                  onClick={handleNext}
-                  disabled={completing}
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl px-4 sm:px-8 text-white font-bold shadow-md flex-1 sm:flex-none"
-                >
-                  {currentLesson.completed ? (
-                    <><CheckCircle className="w-4 h-4 mr-1.5" /> {t.completed || "Completed"}</>
-                  ) : currentLesson.type === "video" ? (
-                    <><Play className="w-4 h-4 mr-1.5 fill-white" /> {t.watchNow}</>
+                {/* Last lesson: show Complete Course button */}
+                {currentLessonIndex === courseLessons.length - 1 ? (
+                  showCompletionMessage ? (
+                    <Link to="/courses" className="flex-1 sm:flex-none">
+                      <Button className="w-full bg-gradient-to-r from-emerald-500 to-green-500 rounded-xl px-4 sm:px-8 text-white font-bold shadow-md">
+                        <CheckCircle className="w-4 h-4 mr-1.5" />
+                        Back to Courses
+                      </Button>
+                    </Link>
                   ) : (
-                    <><Gamepad2 className="w-4 h-4 mr-1.5" /> {t.startActivity}</>
-                  )}
-                </Button>
-
-                <Button
-                  onClick={handleNext}
-                  disabled={completing || currentLessonIndex === courseLessons.length - 1}
-                  variant="outline"
-                  className="rounded-xl border-gray-200 hover:border-purple-300 disabled:opacity-40 flex-1 sm:flex-none"
-                >
-                  {completing ? (
-                    <span className="flex items-center gap-1">
-                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                      </svg>
-                      Saving...
-                    </span>
-                  ) : (
-                    <>
-                      <span className="hidden sm:inline">{t.next}</span>
-                      <span className="sm:hidden">Next</span>
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </>
-                  )}
-                </Button>
+                    <Button
+                      onClick={handleFinishCourse}
+                      disabled={completing}
+                      className="flex-1 sm:flex-none bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 rounded-xl px-4 sm:px-8 text-white font-bold shadow-md"
+                    >
+                      {completing ? (
+                        <span className="flex items-center gap-2">
+                          <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          </svg>
+                          Saving...
+                        </span>
+                      ) : (
+                        <><CheckCircle className="w-4 h-4 mr-1.5" /> Complete Course 🎉</>
+                      )}
+                    </Button>
+                  )
+                ) : (
+                  <Button
+                    onClick={handleNext}
+                    disabled={completing}
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl px-4 sm:px-8 text-white font-bold shadow-md flex-1 sm:flex-none"
+                  >
+                    {completing ? (
+                      <span className="flex items-center gap-1">
+                        <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                        Saving...
+                      </span>
+                    ) : (
+                      <>
+                        <span className="hidden sm:inline">{t.next}</span>
+                        <span className="sm:hidden">Next</span>
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
+
             </div>
           </Card>
 
