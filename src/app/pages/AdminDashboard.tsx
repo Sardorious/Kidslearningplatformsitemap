@@ -567,222 +567,252 @@ export function AdminDashboard() {
 
         {/* Teachers Tab */}
         <TabsContent value="teachers" className="mt-0">
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading ? <p className="text-gray-500">Loading teachers...</p> :
-              data.teachers.map((teacher) => (
-                <Card key={teacher.id} className="p-5 hover:shadow-lg transition-all">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-2xl">
-                        {teacher.firstName ? teacher.firstName.charAt(0) : "T"}
-                      </div>
-                      <div>
-                        <h3 className="font-black text-gray-900">{teacher.firstName} {teacher.lastName}</h3>
-                        <p className="text-sm text-gray-600">{teacher.email}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {teacher.role === "admin" && (
-                            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full">
-                              {t.admin}
-                            </span>
-                          )}
-                          <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${teacher.status === "active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-700"
-                            }`}>
-                            {teacher.status === "active" ? t.active : t.inactive}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.subjects}:</span>
-                      <span className="font-semibold">General</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.classesAssigned}:</span>
-                      <span className="font-semibold">0</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.joinedDate}:</span>
-                      <span className="font-semibold">{new Date(teacher.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 rounded-full" onClick={() => handleEdit("teacher", teacher)}>
-                      <Edit className="w-3 h-3 mr-1" />
-                      {t.edit}
-                    </Button>
-                    <Button size="sm" variant="outline" className="rounded-full text-red-600 border-red-200" onClick={() => handleDelete("teacher", teacher.id, teacher.firstName)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-          </div>
+          <Card className="overflow-hidden border border-gray-100 shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Teacher</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Email</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Role</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Joined</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading teachers...</td></tr>
+                  ) : data.teachers.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No teachers found.</td></tr>
+                  ) : (
+                    data.teachers
+                      .filter(t => !searchQuery || `${t.firstName} ${t.lastName} ${t.email}`.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((teacher, idx) => (
+                        <tr key={teacher.id} className={`border-b border-gray-100 hover:bg-purple-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                {teacher.firstName ? teacher.firstName.charAt(0).toUpperCase() : "T"}
+                              </div>
+                              <span className="font-semibold text-gray-900">{teacher.firstName} {teacher.lastName}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{teacher.email || '—'}</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${teacher.role === 'ADMIN' || teacher.role === 'Admin' || teacher.role === 'admin'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-purple-100 text-purple-700'
+                              }`}>{teacher.role || 'Teacher'}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${teacher.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                              }`}>{teacher.status === 'active' ? 'Active' : 'Inactive'}</span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{teacher.createdAt ? new Date(teacher.createdAt).toLocaleDateString() : '—'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("teacher", teacher)}>
+                                <Edit className="w-3 h-3 mr-1" />{t.edit}
+                              </Button>
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("teacher", teacher.id, teacher.firstName)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </TabsContent>
 
         {/* Students Tab */}
         <TabsContent value="students" className="mt-0">
-
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading ? <p className="text-gray-500">Loading students...</p> :
-              data.students.map((student) => (
-                <Card key={student.id} className="p-5 hover:shadow-lg transition-all">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-2xl">
-                        {student.firstName ? student.firstName.charAt(0) : "S"}
-                      </div>
-                      <div>
-                        <h3 className="font-black text-gray-900">{student.firstName} {student.lastName}</h3>
-                        <p className="text-sm text-gray-600">{student.email}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">Grade 1</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.age}:</span>
-                      <span className="font-semibold">N/A</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.parentEmail}:</span>
-                      <span className="font-semibold text-xs">N/A</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.enrolledDate}:</span>
-                      <span className="font-semibold">{new Date(student.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 rounded-full" onClick={() => handleEdit("student", student)}>
-                      <Edit className="w-3 h-3 mr-1" />
-                      {t.edit}
-                    </Button>
-                    <Button size="sm" variant="outline" className="rounded-full text-red-600 border-red-200" onClick={() => handleDelete("student", student.id, student.firstName)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-          </div>
+          <Card className="overflow-hidden border border-gray-100 shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Student</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Email</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Phone</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">XP</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Enrolled</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading students...</td></tr>
+                  ) : data.students.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No students found.</td></tr>
+                  ) : (
+                    data.students
+                      .filter(s => !searchQuery || `${s.firstName} ${s.lastName} ${s.email}`.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((student, idx) => (
+                        <tr key={student.id} className={`border-b border-gray-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                {student.firstName ? student.firstName.charAt(0).toUpperCase() : "S"}
+                              </div>
+                              <span className="font-semibold text-gray-900">{student.firstName} {student.lastName}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{student.email || '—'}</td>
+                          <td className="px-4 py-3 text-gray-600">{student.phoneNumber || '—'}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">{student.xp ?? 0} XP</span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{student.createdAt ? new Date(student.createdAt).toLocaleDateString() : '—'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("student", student)}>
+                                <Edit className="w-3 h-3 mr-1" />{t.edit}
+                              </Button>
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("student", student.id, student.firstName)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </TabsContent>
 
         {/* Classes Tab */}
         <TabsContent value="classes" className="mt-0">
-
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading ? <p className="text-gray-500">Loading classes...</p> :
-              data.classes.map((classItem) => (
-                <Card key={classItem.id} className="p-5 hover:shadow-lg transition-all">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-xl font-black text-gray-900 mb-1">{classItem.name}</h3>
-                      <p className="text-sm text-gray-600">{classItem.grade}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-black text-purple-600">{classItem.studentCount}</div>
-                      <div className="text-xs text-gray-500">{t.students}</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 mb-4">
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <GraduationCap className="w-4 h-4 text-purple-600" />
-                        <span className="text-sm font-semibold text-gray-700">{t.teacher}:</span>
-                      </div>
-                      <p className="text-sm text-gray-900">{classItem.teacher}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.schedule}:</span>
-                      <span className="font-semibold">{classItem.schedule}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.room}:</span>
-                      <span className="font-semibold">{classItem.room}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 rounded-full" onClick={() => handleEdit("class", classItem)}>
-                      <Edit className="w-3 h-3 mr-1" />
-                      {t.edit}
-                    </Button>
-                    <Button size="sm" variant="outline" className="rounded-full text-red-600 border-red-200" onClick={() => handleDelete("class", classItem.id, classItem.name)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-          </div>
+          <Card className="overflow-hidden border border-gray-100 shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Class Name</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Grade</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Teacher</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Schedule</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Room</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Students</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading classes...</td></tr>
+                  ) : data.classes.length === 0 ? (
+                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">No classes found.</td></tr>
+                  ) : (
+                    data.classes
+                      .filter(c => !searchQuery || (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((classItem, idx) => (
+                        <tr key={classItem.id} className={`border-b border-gray-100 hover:bg-orange-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
+                          <td className="px-4 py-3 font-semibold text-gray-900">{classItem.name}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">{classItem.grade || '—'}</span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{classItem.teacher || '—'}</td>
+                          <td className="px-4 py-3 text-gray-600">{classItem.schedule || '—'}</td>
+                          <td className="px-4 py-3 text-gray-600">{classItem.room || '—'}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">{classItem.studentCount ?? 0}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("class", classItem)}>
+                                <Edit className="w-3 h-3 mr-1" />{t.edit}
+                              </Button>
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("class", classItem.id, classItem.name)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </TabsContent>
 
         {/* Courses Tab */}
         <TabsContent value="courses" className="mt-0">
-
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading ? <p className="text-gray-500">Loading courses...</p> :
-              data.courses.map((course) => (
-                <Card key={course.id} className="p-5 hover:shadow-lg transition-all">
-                  <div className="w-full h-32 bg-gradient-to-br from-purple-400 to-pink-400 rounded-xl mb-4 flex items-center justify-center text-4xl overflow-hidden">
-                    {course.image ? <img src={course.image} className="w-full h-full object-cover opacity-80" alt="" /> : '📚'}
-                  </div>
-
-                  <div className="mb-4">
-                    <h3 className="text-lg font-black text-gray-900 mb-1">{course.title}</h3>
-                    <p className="text-sm text-gray-600 mb-2">{course.category}</p>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${(course.status || "published") === "published"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
-                        }`}>
-                        {(course.status || "published") === "published" ? t.published : t.draft}
-                      </span>
-                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                        {course.level}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.lessons}:</span>
-                      <span className="font-semibold">{course.lessonCount}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.enrolledStudents}:</span>
-                      <span className="font-semibold">{course.enrolledStudents}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{t.lastUpdated}:</span>
-                      <span className="font-semibold">{new Date(course.createdAt || Date.now()).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 rounded-full text-purple-600 border-purple-200" onClick={() => handleOpenManageLessons(course)}>
-                      <BookOpen className="w-3 h-3 mr-1" />
-                      Steps
-                    </Button>
-                    <Button size="sm" variant="outline" className="rounded-full text-red-600 border-red-200" onClick={() => handleDelete("course", course.id, course.title)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-          </div>
+          <Card className="overflow-hidden border border-gray-100 shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Course</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Category</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Level</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Lessons</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Students</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Created</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading courses...</td></tr>
+                  ) : data.courses.length === 0 ? (
+                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">No courses found.</td></tr>
+                  ) : (
+                    data.courses
+                      .filter(c => !searchQuery || (c.title || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((course, idx) => (
+                        <tr key={course.id} className={`border-b border-gray-100 hover:bg-green-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center text-lg shrink-0 overflow-hidden">
+                                {course.image ? <img src={course.image} className="w-full h-full object-cover" alt="" /> : '📚'}
+                              </div>
+                              <span className="font-semibold text-gray-900">{course.title}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{course.category || '—'}</td>
+                          <td className="px-4 py-3">
+                            {course.level ? <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">{course.level}</span> : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${(course.status || 'published') === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                              }`}>{(course.status || 'published') === 'published' ? 'Published' : 'Draft'}</span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{course.lessonCount ?? '—'}</td>
+                          <td className="px-4 py-3 text-gray-600">{course.enrolledStudents ?? '—'}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{course.createdAt ? new Date(course.createdAt).toLocaleDateString() : '—'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs text-purple-600 border-purple-200 hover:bg-purple-50" onClick={() => handleOpenManageLessons(course)}>
+                                <BookOpen className="w-3 h-3 mr-1" />Steps
+                              </Button>
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("course", course.id, course.title)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </TabsContent>
 
         {/* Materials Tab */}
@@ -812,55 +842,76 @@ export function AdminDashboard() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {loading ? <p className="text-gray-500">Loading materials...</p> :
-              data.materials.map((material: any) => (
-                <Card key={material.id} className="p-4 hover:shadow-lg transition-all">
-                  <div className={`w-full h-32 rounded-xl mb-3 flex items-center justify-center ${material.type === "video" ? "bg-red-100" :
-                    material.type === "document" ? "bg-blue-100" :
-                      material.type === "image" ? "bg-green-100" :
-                        material.type === "audio" ? "bg-purple-100" :
-                          "bg-orange-100"
-                    }`}>
-                    {material.type === "video" && <Video className="w-12 h-12 text-red-600" />}
-                    {material.type === "document" && <FileText className="w-12 h-12 text-blue-600" />}
-                    {material.type === "image" && <ImageIcon className="w-12 h-12 text-green-600" />}
-                    {material.type === "audio" && <Music className="w-12 h-12 text-purple-600" />}
-                    {material.type === "interactive" && <Code className="w-12 h-12 text-orange-600" />}
-                  </div>
-
-                  <h3 className="font-bold text-gray-900 mb-1 text-sm truncate">{material.name}</h3>
-                  <p className="text-xs text-gray-600 mb-2">{material.course}</p>
-
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                    <span>{material.size}</span>
-                    <span>{material.uploadDate}</span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    {material.url ? (
-                      <Link
-                        to={`/material/view?url=${encodeURIComponent(material.url)}&type=${encodeURIComponent(material.type || '')}&name=${encodeURIComponent(material.name)}`}
-                        className="flex-1"
-                      >
-                        <Button size="sm" variant="outline" className="w-full rounded-full text-xs text-purple-700 border-purple-200 hover:bg-purple-50">
-                          <Eye className="w-3 h-3 mr-1" />
-                          View
-                        </Button>
-                      </Link>
-                    ) : (
-                      <Button size="sm" variant="outline" className="flex-1 rounded-full text-xs" disabled>
-                        <Eye className="w-3 h-3 mr-1" />
-                        No File
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline" className="rounded-full text-red-600 border-red-200" onClick={() => handleDelete("material", material.id, material.name)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-          </div>
+          <Card className="overflow-hidden border border-gray-100 shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gradient-to-r from-cyan-50 to-blue-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Name</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Type</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Course</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Size</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Uploaded</th>
+                    <th className="text-center px-4 py-3 font-semibold text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading materials...</td></tr>
+                  ) : data.materials.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No materials found.</td></tr>
+                  ) : (
+                    data.materials
+                      .filter((m: any) => !searchQuery || (m.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((material: any, idx: number) => (
+                        <tr key={material.id} className={`border-b border-gray-100 hover:bg-cyan-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
+                          <td className="px-4 py-3 font-semibold text-gray-900 max-w-[180px] truncate">{material.name}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {material.type === 'video' && <Video className="w-4 h-4 text-red-500 shrink-0" />}
+                              {material.type === 'document' && <FileText className="w-4 h-4 text-blue-500 shrink-0" />}
+                              {material.type === 'image' && <ImageIcon className="w-4 h-4 text-green-500 shrink-0" />}
+                              {material.type === 'audio' && <Music className="w-4 h-4 text-purple-500 shrink-0" />}
+                              {material.type === 'interactive' && <Code className="w-4 h-4 text-orange-500 shrink-0" />}
+                              {!['video', 'document', 'image', 'audio', 'interactive'].includes(material.type) && <FileText className="w-4 h-4 text-gray-400 shrink-0" />}
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${material.type === 'video' ? 'bg-red-100 text-red-700' :
+                                  material.type === 'document' ? 'bg-blue-100 text-blue-700' :
+                                    material.type === 'image' ? 'bg-green-100 text-green-700' :
+                                      material.type === 'audio' ? 'bg-purple-100 text-purple-700' :
+                                        'bg-orange-100 text-orange-700'
+                                }`}>{material.type || 'file'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{material.course || '—'}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{material.size || '—'}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{material.uploadDate || (material.createdAt ? new Date(material.createdAt).toLocaleDateString() : '—')}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              {material.url ? (
+                                <Link to={`/material/view?url=${encodeURIComponent(material.url)}&type=${encodeURIComponent(material.type || '')}&name=${encodeURIComponent(material.name)}`}>
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs text-purple-700 border-purple-200 hover:bg-purple-50">
+                                    <Eye className="w-3 h-3 mr-1" />View
+                                  </Button>
+                                </Link>
+                              ) : (
+                                <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" disabled>
+                                  <Eye className="w-3 h-3 mr-1" />No File
+                                </Button>
+                              )}
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("material", material.id, material.name)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </TabsContent>
       </Tabs>
 
