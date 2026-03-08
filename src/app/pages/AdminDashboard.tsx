@@ -368,14 +368,19 @@ export function AdminDashboard() {
   };
 
   const handleEditLesson = async (lesson: any) => {
+    const contentUrl = lesson.contentUrl || lesson.ContentUrl || lesson.videoUrl || lesson.VideoUrl || '';
+    // Try to find matching material by URL
+    const matchingMaterial = data.materials.find((m: any) =>
+      (m.url || m.Url || '') === contentUrl && contentUrl !== ''
+    );
     setEditingLesson(lesson);
     setLessonForm({
       title: lesson.title || lesson.Title || '',
-      description: lesson.description || lesson.Description || lesson.content || lesson.Content || '',
+      description: lesson.content || lesson.Content || lesson.description || lesson.Description || '',
       duration: lesson.duration || lesson.Duration || '',
       type: lesson.type || lesson.Type || 'video',
-      contentUrl: lesson.contentUrl || lesson.ContentUrl || lesson.videoUrl || lesson.VideoUrl || '',
-      materialId: ''
+      contentUrl,
+      materialId: matchingMaterial ? String(matchingMaterial.id) : ''
     });
     // Load questions for this lesson
     setLessonQuestions([]);
@@ -405,7 +410,7 @@ export function AdminDashboard() {
         contentUrl: lessonForm.contentUrl
       });
       setLessonsForSelectedCourse(prev =>
-        prev.map(l => l.id === editingLesson.id ? { ...l, ...updated, title: lessonForm.title, description: lessonForm.description, duration: lessonForm.duration, type: lessonForm.type, contentUrl: lessonForm.contentUrl } : l)
+        prev.map(l => l.id === editingLesson.id ? { ...l, ...updated, title: lessonForm.title, content: lessonForm.description, duration: lessonForm.duration, type: lessonForm.type, contentUrl: lessonForm.contentUrl } : l)
       );
       // keep editingLesson open so admin can manage questions
     } catch (err) {
@@ -441,13 +446,13 @@ export function AdminDashboard() {
 
   const handleMaterialSelect = (materialIdStr: string) => {
     const matId = parseInt(materialIdStr);
-    const mat = data.materials.find(m => m.id === matId);
+    const mat = data.materials.find((m: any) => m.id === matId);
     if (mat) {
       setLessonForm({
         ...lessonForm,
         materialId: materialIdStr,
         type: mat.type || 'video',
-        contentUrl: mat.url || ''
+        contentUrl: mat.url || mat.Url || ''
       });
     }
   };
@@ -519,6 +524,36 @@ export function AdminDashboard() {
         </Card>
       </div>
 
+      {/* Unified Filter Bar — lives alongside stats, applies to the active tab */}
+      <Card className="p-3 border border-gray-100 shadow-sm bg-white">
+        <div className="flex flex-col sm:flex-row gap-3 items-center">
+          <div className="relative flex-1 w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search students, teachers, courses, classes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 bg-gray-50"
+            />
+          </div>
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            <Button size="sm" className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl text-xs" onClick={() => setSelectedModal("addTeacher")}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Teacher
+            </Button>
+            <Button size="sm" className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl text-xs" onClick={() => setSelectedModal("addStudent")}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Student
+            </Button>
+            <Button size="sm" className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl text-xs" onClick={() => setSelectedModal("addCourse")}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Course
+            </Button>
+            <Button size="sm" className="bg-gradient-to-r from-orange-400 to-amber-500 rounded-xl text-xs" onClick={() => setSelectedModal("addClass")}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Class
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       {/* Main Tabs */}
       <Tabs defaultValue="teachers" className="space-y-6">
         <TabsList className="bg-white border shadow-sm rounded-xl p-1 flex-wrap h-auto">
@@ -529,29 +564,9 @@ export function AdminDashboard() {
           <TabsTrigger value="materials" className="rounded-lg">{t.materials}</TabsTrigger>
         </TabsList>
 
+
         {/* Teachers Tab */}
-        <TabsContent value="teachers" className="space-y-6">
-          <Card className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder={t.searchTeachers}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 rounded-xl"
-                />
-              </div>
-              <Button
-                className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl"
-                onClick={() => setSelectedModal("addTeacher")}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {t.addTeacher}
-              </Button>
-            </div>
-          </Card>
+        <TabsContent value="teachers" className="mt-0">
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {loading ? <p className="text-gray-500">Loading teachers...</p> :
@@ -612,28 +627,8 @@ export function AdminDashboard() {
         </TabsContent>
 
         {/* Students Tab */}
-        <TabsContent value="students" className="space-y-6">
-          <Card className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder={t.searchStudents}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 rounded-xl"
-                />
-              </div>
-              <Button
-                className="bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl"
-                onClick={() => setSelectedModal("addStudent")}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {t.addStudent}
-              </Button>
-            </div>
-          </Card>
+        <TabsContent value="students" className="mt-0">
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {loading ? <p className="text-gray-500">Loading students...</p> :
@@ -682,19 +677,8 @@ export function AdminDashboard() {
         </TabsContent>
 
         {/* Classes Tab */}
-        <TabsContent value="classes" className="space-y-6">
-          <Card className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-              <h2 className="text-xl font-black text-gray-900">{t.manageClasses}</h2>
-              <Button
-                className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl"
-                onClick={() => setSelectedModal("addClass")}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {t.addClass}
-              </Button>
-            </div>
-          </Card>
+        <TabsContent value="classes" className="mt-0">
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {loading ? <p className="text-gray-500">Loading classes...</p> :
@@ -745,26 +729,8 @@ export function AdminDashboard() {
         </TabsContent>
 
         {/* Courses Tab */}
-        <TabsContent value="courses" className="space-y-6">
-          <Card className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  type="text"
-                  placeholder={t.searchCourses}
-                  className="pl-10 rounded-xl"
-                />
-              </div>
-              <Button
-                className="bg-gradient-to-r from-orange-500 to-pink-500 rounded-xl"
-                onClick={() => setSelectedModal("addCourse")}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                {t.addCourse}
-              </Button>
-            </div>
-          </Card>
+        <TabsContent value="courses" className="mt-0">
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {loading ? <p className="text-gray-500">Loading courses...</p> :
