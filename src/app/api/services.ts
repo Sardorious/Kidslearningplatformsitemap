@@ -127,3 +127,22 @@ export const fileService = {
         return response.data;
     }
 };
+
+// Lesson Questions API
+export const lessonQuestionService = {
+    getByLesson: async (lessonId: number) => {
+        const response = await api.get(`/lesson-questions/lesson/${lessonId}`);
+        return response.data;
+    },
+    create: async (data: { lessonId: number; questionText: string; optionsJson: string; correctAnswer: string; orderIndex: number }) => {
+        const response = await api.post('/admin/lesson-questions', data);
+        return response.data;
+    },
+    update: async (id: number, data: { questionText: string; optionsJson: string; correctAnswer: string; orderIndex: number }) => {
+        const response = await api.put(`/admin/lesson-questions/${id}`, data);
+        return response.data;
+    },
+    delete: async (id: number) => {
+        await api.delete(`/admin/lesson-questions/${id}`);
+    }
+};

@@ -36,7 +36,7 @@ import {
 } from "../components/ui/select";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useEffect } from "react";
-import { userService, courseService, lessonService, fileService, classService, materialService } from "../api/services";
+import { userService, courseService, lessonService, fileService, classService, materialService, lessonQuestionService } from "../api/services";
 
 export function AdminDashboard() {
   const { t } = useLanguage();
@@ -65,6 +65,10 @@ export function AdminDashboard() {
   const [lessonsForSelectedCourse, setLessonsForSelectedCourse] = useState<any[]>([]);
   const [lessonForm, setLessonForm] = useState({ title: '', description: '', duration: '', type: 'video', contentUrl: '', materialId: '' });
   const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [lessonQuestions, setLessonQuestions] = useState<any[]>([]);
+  const [questionForm, setQuestionForm] = useState({ questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: '' });
+  const [addingQuestion, setAddingQuestion] = useState(false);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
 
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -363,7 +367,7 @@ export function AdminDashboard() {
     }
   };
 
-  const handleEditLesson = (lesson: any) => {
+  const handleEditLesson = async (lesson: any) => {
     setEditingLesson(lesson);
     setLessonForm({
       title: lesson.title || lesson.Title || '',
@@ -373,6 +377,20 @@ export function AdminDashboard() {
       contentUrl: lesson.contentUrl || lesson.ContentUrl || lesson.videoUrl || lesson.VideoUrl || '',
       materialId: ''
     });
+    // Load questions for this lesson
+    setLessonQuestions([]);
+    setAddingQuestion(false);
+    setQuestionForm({ questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: '' });
+    try {
+      setQuestionsLoading(true);
+      const qs = await lessonQuestionService.getByLesson(lesson.id);
+      const parsed = (qs || []).map((q: any) => {
+        const opts = JSON.parse(q.optionsJson || '[]');
+        return { ...q, optionA: opts[0] || '', optionB: opts[1] || '', optionC: opts[2] || '', optionD: opts[3] || '' };
+      });
+      setLessonQuestions(parsed);
+    } catch (e) { console.error('Failed to load questions', e); }
+    finally { setQuestionsLoading(false); }
   };
 
   const handleUpdateLesson = async () => {
@@ -389,11 +407,36 @@ export function AdminDashboard() {
       setLessonsForSelectedCourse(prev =>
         prev.map(l => l.id === editingLesson.id ? { ...l, ...updated, title: lessonForm.title, description: lessonForm.description, duration: lessonForm.duration, type: lessonForm.type, contentUrl: lessonForm.contentUrl } : l)
       );
-      setEditingLesson(null);
-      setLessonForm({ title: '', description: '', duration: '', type: 'video', contentUrl: '', materialId: '' });
+      // keep editingLesson open so admin can manage questions
     } catch (err) {
       console.error("Failed to update lesson", err);
     }
+  };
+
+  const handleAddQuestion = async () => {
+    if (!editingLesson || !questionForm.questionText || !questionForm.correctAnswer) return;
+    const options = [questionForm.optionA, questionForm.optionB, questionForm.optionC, questionForm.optionD].filter(Boolean);
+    if (options.length < 2) return;
+    try {
+      const q = await lessonQuestionService.create({
+        lessonId: editingLesson.id,
+        questionText: questionForm.questionText,
+        optionsJson: JSON.stringify(options),
+        correctAnswer: questionForm.correctAnswer,
+        orderIndex: lessonQuestions.length
+      });
+      const opts = JSON.parse(q.optionsJson || '[]');
+      setLessonQuestions(prev => [...prev, { ...q, optionA: opts[0] || '', optionB: opts[1] || '', optionC: opts[2] || '', optionD: opts[3] || '' }]);
+      setQuestionForm({ questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: '' });
+      setAddingQuestion(false);
+    } catch (e) { console.error('Failed to add question', e); }
+  };
+
+  const handleDeleteQuestion = async (qId: number) => {
+    try {
+      await lessonQuestionService.delete(qId);
+      setLessonQuestions(prev => prev.filter(q => q.id !== qId));
+    } catch (e) { console.error('Failed to delete question', e); }
   };
 
   const handleMaterialSelect = (materialIdStr: string) => {
@@ -1906,7 +1949,95 @@ export function AdminDashboard() {
                       </Button>
                     )}
                   </div>
+
+                  {/* Quiz Questions Section — shown only when editing a step */}
+                  {editingLesson && (
+                    <div className="mt-4 pt-4 border-t border-amber-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-bold text-amber-900">📝 Quiz Questions ({lessonQuestions.length})</h4>
+                        <Button
+                          size="sm"
+                          className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 rounded-xl h-7"
+                          onClick={() => { setAddingQuestion(!addingQuestion); setQuestionForm({ questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: '' }); }}
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add Question
+                        </Button>
+                      </div>
+
+                      {questionsLoading && <p className="text-xs text-gray-400 text-center py-2">Loading questions...</p>}
+
+                      {/* Existing Questions */}
+                      {lessonQuestions.map((q, qi) => (
+                        <div key={q.id} className="mb-2 p-2.5 bg-white border border-amber-100 rounded-xl text-xs">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-800 mb-1">Q{qi + 1}. {q.questionText}</p>
+                              <div className="grid grid-cols-2 gap-1">
+                                {JSON.parse(q.optionsJson || '[]').map((opt: string, oi: number) => (
+                                  <span key={oi} className={`px-1.5 py-0.5 rounded text-[10px] ${opt === q.correctAnswer ? 'bg-emerald-100 text-emerald-700 font-bold' : 'bg-gray-100 text-gray-600'}`}>
+                                    {String.fromCharCode(65 + oi)}. {opt} {opt === q.correctAnswer ? '✓' : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-600 h-6 w-6 p-0 shrink-0" onClick={() => handleDeleteQuestion(q.id)}>
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {lessonQuestions.length === 0 && !questionsLoading && !addingQuestion && (
+                        <p className="text-xs text-amber-600/70 italic text-center py-2">No questions yet. Students can proceed without a quiz.</p>
+                      )}
+
+                      {/* Add Question Form */}
+                      {addingQuestion && (
+                        <div className="mt-2 p-3 bg-white border border-amber-200 rounded-xl space-y-2">
+                          <Input
+                            placeholder="Question text..."
+                            className="rounded-lg text-xs h-8 border-amber-200"
+                            value={questionForm.questionText}
+                            onChange={e => setQuestionForm({ ...questionForm, questionText: e.target.value })}
+                          />
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {(['optionA', 'optionB', 'optionC', 'optionD'] as const).map((key, i) => (
+                              <Input key={key} placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                                className="rounded-lg text-xs h-8 border-amber-200"
+                                value={questionForm[key]}
+                                onChange={e => setQuestionForm({ ...questionForm, [key]: e.target.value })}
+                              />
+                            ))}
+                          </div>
+                          <Select value={questionForm.correctAnswer} onValueChange={val => setQuestionForm({ ...questionForm, correctAnswer: val })}>
+                            <SelectTrigger className="rounded-lg text-xs h-8 bg-white border-amber-200">
+                              <SelectValue placeholder="Select correct answer..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[questionForm.optionA, questionForm.optionB, questionForm.optionC, questionForm.optionD]
+                                .filter(Boolean)
+                                .map((opt, i) => (
+                                  <SelectItem key={i} value={opt}>{String.fromCharCode(65 + i)}. {opt}</SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <div className="flex gap-2 pt-1">
+                            <Button size="sm" className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs rounded-xl h-7"
+                              onClick={handleAddQuestion}
+                              disabled={!questionForm.questionText || !questionForm.correctAnswer || !questionForm.optionA || !questionForm.optionB}>
+                              Save Question
+                            </Button>
+                            <Button size="sm" variant="outline" className="text-xs rounded-xl h-7 border-amber-200" onClick={() => setAddingQuestion(false)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+
               </div>
             </div>
           </Card>

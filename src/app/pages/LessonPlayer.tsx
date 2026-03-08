@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router";
 import { ChevronLeft, ChevronRight, CheckCircle, Circle, Play, BookOpen, FileQuestion, Gamepad2, Menu, X, ArrowLeft, Lock, FileText } from "lucide-react";
-import { courseService, lessonService, userService } from "../api/services";
+import { courseService, lessonService, userService, lessonQuestionService } from "../api/services";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
@@ -27,6 +27,12 @@ export function LessonPlayer() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [earnedXp, setEarnedXp] = useState(0);
   const [showCompletionMessage, setShowCompletionMessage] = useState(false);
+  const [lessonQuestionsMap, setLessonQuestionsMap] = useState<Record<number, any[]>>({});
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [quizPassed, setQuizPassed] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'next' | 'finish' | null>(null);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -82,6 +88,19 @@ export function LessonPlayer() {
 
 
         setCourseLessons(normalizedLessons);
+
+        // Load questions for all lessons
+        const qMap: Record<number, any[]> = {};
+        await Promise.all(normalizedLessons.map(async (l: any) => {
+          try {
+            const qs = await lessonQuestionService.getByLesson(l.id);
+            qMap[l.id] = (qs || []).map((q: any) => ({
+              ...q,
+              options: JSON.parse(q.optionsJson || '[]')
+            }));
+          } catch { qMap[l.id] = []; }
+        }));
+        setLessonQuestionsMap(qMap);
 
         if (lessonId && normalizedLessons.length > 0) {
           const idx = normalizedLessons.findIndex((l: any) => l.id === parseInt(lessonId));
@@ -166,7 +185,9 @@ export function LessonPlayer() {
     default: "text-gray-600 bg-gray-100",
   };
 
-  const handleNext = async () => {
+  const currentLessonQuestions = currentLesson ? (lessonQuestionsMap[currentLesson.id] || []) : [];
+
+  const completeAndAdvance = async (action: 'next' | 'finish') => {
     try {
       if (!currentLesson.completed) {
         setCompleting(true);
@@ -174,41 +195,63 @@ export function LessonPlayer() {
         const newLessons = [...courseLessons];
         newLessons[currentLessonIndex].completed = true;
         setCourseLessons(newLessons);
-
-        const newXp = earnedXp + xpPerLesson;
-        setEarnedXp(newXp);
+        setEarnedXp(prev => prev + xpPerLesson);
       }
     } catch (err) {
       console.error("Failed to mark lesson complete", err);
     } finally {
       setCompleting(false);
     }
-
-    if (currentLessonIndex < courseLessons.length - 1) {
-      setCurrentLessonIndex(currentLessonIndex + 1);
-      setSidebarOpen(false);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
-  };
-
-  const handleFinishCourse = async () => {
-    try {
-      setCompleting(true);
-      if (!currentLesson.completed) {
-        await userService.completeLesson({ lessonId: currentLesson.id });
-        const newLessons = [...courseLessons];
-        newLessons[currentLessonIndex].completed = true;
-        setCourseLessons(newLessons);
-        const newXp = earnedXp + xpPerLesson;
-        setEarnedXp(newXp);
-      }
+    if (action === 'finish') {
       setShowCompletionMessage(true);
-    } catch (err) {
-      console.error("Failed to complete course", err);
-    } finally {
-      setCompleting(false);
+    } else {
+      if (currentLessonIndex < courseLessons.length - 1) {
+        setCurrentLessonIndex(currentLessonIndex + 1);
+        setSidebarOpen(false);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     }
   };
+
+  const handleNext = () => {
+    if (currentLessonQuestions.length > 0 && !currentLesson.completed) {
+      // Show quiz first
+      setQuizAnswers({});
+      setQuizSubmitted(false);
+      setQuizPassed(false);
+      setPendingAction('next');
+      setShowQuiz(true);
+    } else {
+      completeAndAdvance('next');
+    }
+  };
+
+  const handleFinishCourse = () => {
+    if (currentLessonQuestions.length > 0 && !currentLesson.completed) {
+      setQuizAnswers({});
+      setQuizSubmitted(false);
+      setQuizPassed(false);
+      setPendingAction('finish');
+      setShowQuiz(true);
+    } else {
+      completeAndAdvance('finish');
+    }
+  };
+
+  const handleQuizSubmit = () => {
+    const allCorrect = currentLessonQuestions.every(q => quizAnswers[q.id] === q.correctAnswer);
+    setQuizSubmitted(true);
+    setQuizPassed(allCorrect);
+    if (allCorrect && pendingAction) {
+      // Short delay to show the "Correct!" state before advancing
+      setTimeout(() => {
+        setShowQuiz(false);
+        completeAndAdvance(pendingAction);
+        setPendingAction(null);
+      }, 1200);
+    }
+  };
+
 
 
   const handlePrevious = () => {
@@ -275,8 +318,8 @@ export function LessonPlayer() {
           />
         )}
         <div className={`${sidebarOpen
-            ? 'fixed top-16 left-0 right-0 z-50 px-3 pb-4 md:static md:px-0 md:pb-0 md:z-auto'
-            : 'hidden md:block'
+          ? 'fixed top-16 left-0 right-0 z-50 px-3 pb-4 md:static md:px-0 md:pb-0 md:z-auto'
+          : 'hidden md:block'
           } md:col-span-1`}>
           <Card className="p-4 rounded-2xl border border-gray-100 shadow-sm">
             <div className="flex items-center justify-between mb-3">
@@ -334,10 +377,13 @@ export function LessonPlayer() {
         {/* Lesson Content */}
         <div className="md:col-span-2 space-y-4 min-w-0">
           {/* Video/Content Area */}
-          <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
-            <div className={`bg-gradient-to-br from-gray-900 to-gray-800 ${['pdf', 'document', 'doc'].includes(currentLesson.type) ? 'h-[600px]' :
-              currentLesson.type === 'audio' ? 'h-[280px]' : 'aspect-video'
-              } flex items-center justify-center relative`}>
+          <Card className="overflow-hidden rounded-2xl border border-gray-100 shadow-sm w-full">
+            <div className={`bg-gradient-to-br from-gray-900 to-gray-800 w-full relative ${['pdf', 'document', 'doc'].includes(currentLesson.type)
+              ? 'h-[75vh]'
+              : currentLesson.type === 'audio'
+                ? 'h-64 sm:h-72'
+                : 'aspect-video'
+              } flex items-center justify-center`}>
 
               {currentLesson.type === "video" && (
                 (() => {
@@ -347,19 +393,19 @@ export function LessonPlayer() {
                       controls
                       playsInline
                       src={videoSrc}
-                      className="w-full h-full object-contain"
+                      className="absolute inset-0 w-full h-full object-contain bg-black"
                       poster={course.imageUrl || course.image}
                     >
                       Your browser does not support the video tag.
                     </video>
                   ) : (
-                    <>
-                      <img src={course.imageUrl || course.image || "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80"} alt={currentLesson.title} className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                    <div className="relative z-10 text-center px-6">
+                      <img src={course.imageUrl || course.image || "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80"} alt={currentLesson.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
                       <div className="relative z-10 text-center">
                         <p className="text-white font-bold text-lg">{currentLesson.title}</p>
                         <p className="text-gray-300 text-sm mt-2">No video URL configured. Edit this step in Admin → Courses → Steps.</p>
                       </div>
-                    </>
+                    </div>
                   );
                 })()
               )}
@@ -393,31 +439,31 @@ export function LessonPlayer() {
                 </div>
               )}
               {currentLesson.type === "audio" && (
-                <div className="text-center p-8 w-full">
-                  <Play className="w-16 h-16 text-indigo-400 mx-auto mb-4" />
-                  <p className="text-white text-xl font-bold mb-6">Audio Lesson 🎵</p>
+                <div className="flex flex-col items-center justify-center w-full h-full px-6 py-8 gap-5">
+                  <div className="text-5xl">🎵</div>
+                  <p className="text-white text-lg font-bold text-center">{currentLesson.title}</p>
                   {currentLesson.contentUrl ? (
-                    <div className="max-w-md mx-auto bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                      <audio
-                        controls
-                        src={currentLesson.contentUrl}
-                        className="w-full"
-                      >
-                        Your browser does not support the audio element.
-                      </audio>
-                    </div>
+                    <audio
+                      controls
+                      src={currentLesson.contentUrl}
+                      className="w-full max-w-xl"
+                      style={{ height: '54px' }}
+                    >
+                      Your browser does not support the audio element.
+                    </audio>
                   ) : (
-                    <p className="text-gray-400 mt-1 text-sm">Audio content not available.</p>
+                    <p className="text-gray-400 text-sm">Audio content not available.</p>
                   )}
                 </div>
               )}
               {["pdf", "document", "doc"].includes(currentLesson.type) && (
                 currentLesson.contentUrl ? (
                   <iframe
-                    src={currentLesson.type === 'doc' ? `https://docs.google.com/gview?url=${currentLesson.contentUrl}&embedded=true` : currentLesson.contentUrl}
-                    className="w-full h-full border-0 rounded-b-2xl bg-white"
+                    src={currentLesson.type === 'doc'
+                      ? `https://docs.google.com/gview?url=${currentLesson.contentUrl}&embedded=true`
+                      : currentLesson.contentUrl}
+                    className="absolute inset-0 w-full h-full border-0 bg-white"
                     title="Document Viewer"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                   />
                 ) : (
@@ -540,6 +586,98 @@ export function LessonPlayer() {
           </Card>
         </div>
       </div>
+
+      {/* Quiz Modal Overlay */}
+      {showQuiz && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className={`p-5 rounded-t-3xl text-white ${quizSubmitted && quizPassed ? 'bg-gradient-to-r from-emerald-500 to-green-500' : quizSubmitted ? 'bg-gradient-to-r from-red-500 to-rose-500' : 'bg-gradient-to-r from-purple-600 to-pink-500'}`}>
+              <div className="text-center">
+                {quizSubmitted ? (
+                  quizPassed ? (
+                    <><div className="text-4xl mb-1">🎉</div><h2 className="text-xl font-black">All Correct! Well done!</h2><p className="text-white/80 text-sm mt-1">+{xpPerLesson} XP earned. Moving to next step...</p></>
+                  ) : (
+                    <><div className="text-4xl mb-1">❌</div><h2 className="text-xl font-black">Some answers were wrong</h2><p className="text-white/80 text-sm mt-1">Review the correct answers below and try again.</p></>
+                  )
+                ) : (
+                  <>
+                    <div className="text-4xl mb-1">📝</div>
+                    <h2 className="text-xl font-black">Step Quiz</h2>
+                    <p className="text-white/80 text-sm mt-1">Answer all questions correctly to proceed to the next step.</p>
+                    <p className="text-white/60 text-xs mt-1">{currentLessonQuestions.length} question{currentLessonQuestions.length !== 1 ? 's' : ''}</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Questions */}
+            <div className="p-5 space-y-6">
+              {currentLessonQuestions.map((q, qi) => {
+                const answered = quizAnswers[q.id];
+                const isCorrect = answered === q.correctAnswer;
+                return (
+                  <div key={q.id}>
+                    <p className="font-bold text-gray-900 mb-3 text-sm">Q{qi + 1}. {q.questionText}</p>
+                    <div className="space-y-2">
+                      {q.options.map((opt: string, oi: number) => {
+                        let cls = "w-full text-left px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ";
+                        if (!quizSubmitted) {
+                          cls += answered === opt
+                            ? "border-purple-500 bg-purple-50 text-purple-800"
+                            : "border-gray-200 hover:border-purple-300 hover:bg-purple-50/40 text-gray-700";
+                        } else {
+                          if (opt === q.correctAnswer) cls += "border-emerald-500 bg-emerald-50 text-emerald-800 font-bold";
+                          else if (answered === opt && !isCorrect) cls += "border-red-400 bg-red-50 text-red-700 line-through";
+                          else cls += "border-gray-100 bg-gray-50 text-gray-400";
+                        }
+                        return (
+                          <button key={oi} disabled={quizSubmitted} className={cls}
+                            onClick={() => setQuizAnswers(prev => ({ ...prev, [q.id]: opt }))}>
+                            <span className="font-bold mr-2">{String.fromCharCode(65 + oi)}.</span>{opt}
+                            {quizSubmitted && opt === q.correctAnswer && <span className="float-right text-emerald-600">✓</span>}
+                            {quizSubmitted && answered === opt && !isCorrect && <span className="float-right text-red-500">✗</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="p-5 pt-0 flex gap-3">
+              {!quizSubmitted ? (
+                <>
+                  <Button variant="outline" className="rounded-xl border-gray-200" onClick={() => setShowQuiz(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-bold"
+                    disabled={Object.keys(quizAnswers).length < currentLessonQuestions.length}
+                    onClick={handleQuizSubmit}
+                  >
+                    Submit Answers
+                  </Button>
+                </>
+              ) : !quizPassed ? (
+                <>
+                  <Button variant="outline" className="rounded-xl border-gray-200 flex-1" onClick={() => setShowQuiz(false)}>
+                    Back to Lesson
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl font-bold"
+                    onClick={() => { setQuizAnswers({}); setQuizSubmitted(false); setQuizPassed(false); }}
+                  >
+                    Try Again 🔄
+                  </Button>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
