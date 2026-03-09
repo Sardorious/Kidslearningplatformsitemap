@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router";
 import {
   Users, BookOpen, CheckCircle, Clock, Star, MessageSquare,
   Mic, PenTool, FileText, TrendingUp, Calendar, Award,
-  AlertCircle, Search, BarChart3, X, Send, UserCircle, Phone
+  AlertCircle, Search, BarChart3, X, Send, UserCircle, Phone,
+  Plus, FolderOpen, Trash2, Filter, CheckCircle2, Sparkles, Wand2, Check
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -11,8 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useLanguage } from "../contexts/LanguageContext";
-import { teacherData } from "../data/teacherData";
-import { userService, courseService } from "../api/services";
+import { userService, courseService, materialService, lessonService, fileService } from "../api/services";
+import { Course, User } from "../types";
 
 function TeacherSkeleton() {
   return (
@@ -53,8 +55,16 @@ export function TeacherDashboard() {
   const [feedbackText, setFeedbackText] = useState("");
   const [contactMessage, setContactMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [assignments, setAssignments] = useState<any[]>(teacherData.assignments);
+  const [assignments, setAssignments] = useState<any[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
+  const [activeTab, setActiveTab] = useState("courses");
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [courseMaterials, setCourseMaterials] = useState<any[]>([]);
+  const [uploadingMaterial, setUploadingMaterial] = useState(false);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,8 +73,26 @@ export function TeacherDashboard() {
           userService.getAllUsers(),
           courseService.getTeacherCourses()
         ]);
-        setStudents(usersData.filter((u: any) => u.role === 'STUDENT'));
+        const teacherStudents = usersData.filter((u: any) => u.role === 'STUDENT');
+        setStudents(teacherStudents);
         setCourses(coursesData || []);
+
+        // Mocking assignments from fetched students since there's no direct teacher assignments endpoint visible
+        // In a real app, we'd have a specific endpoint for this.
+        const mockAssignments = [
+          {
+            id: "a1",
+            studentName: "Emma Wilson",
+            studentClass: "Grade 2A",
+            title: "Creative Story Writing",
+            subject: "Writing",
+            type: "writing",
+            status: "pending",
+            submittedDate: "Today",
+            priority: "high",
+          }
+        ];
+        setAssignments(mockAssignments);
       } catch (error) {
         console.error("Failed to load teacher dashboard data:", error);
       } finally {
@@ -77,9 +105,11 @@ export function TeacherDashboard() {
   if (loading) return <TeacherSkeleton />;
 
   const pendingAssignments = assignments.filter(a => a.status === "pending");
-  const filteredStudents = teacherData.students.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesClass = selectedClass === "all" || student.class === selectedClass;
+  const filteredStudents = students.filter(student => {
+    const name = `${student.firstName || ''} ${student.lastName || ''}`.trim();
+    const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (student.email || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesClass = selectedClass === "all" || student.grade === selectedClass;
     return matchesSearch && matchesClass;
   });
 
@@ -173,7 +203,7 @@ export function TeacherDashboard() {
         <div className="flex items-center gap-3">
           <div className="bg-white border-2 border-purple-100 px-4 py-2 rounded-xl text-center">
             <div className="text-xs text-gray-500">{t.totalStudents}</div>
-            <div className="text-2xl font-black text-purple-600">{students.length || teacherData.students.length}</div>
+            <div className="text-2xl font-black text-purple-600">{students.length}</div>
           </div>
           <div className="bg-white border-2 border-orange-100 px-4 py-2 rounded-xl text-center">
             <div className="text-xs text-gray-500">{t.myCourses}</div>
@@ -183,9 +213,9 @@ export function TeacherDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { icon: Users, label: t.activeStudents, value: teacherData.students.length, color: "blue" },
+          { icon: Users, label: t.activeStudents, value: students.length, color: "blue" },
           { icon: Clock, label: t.pendingReview, value: pendingAssignments.length, color: "orange" },
           { icon: CheckCircle, label: t.gradedToday, value: assignments.filter(a => a.status === "graded" && a.gradedDate === "Today").length, color: "green" },
           { icon: Star, label: t.classAverage, value: "87%", color: "purple" },
@@ -198,21 +228,84 @@ export function TeacherDashboard() {
             purple: "from-purple-50 to-purple-100 border-purple-200 text-purple-900",
           };
           return (
-            <Card key={s.label} className={`p-5 bg-gradient-to-br ${colors[s.color]} border-2`}>
-              <Icon className={`w-8 h-8 mb-3 text-${s.color}-600`} />
-              <div className={`text-3xl font-black mb-1 text-${s.color}-900`}>{s.value}</div>
-              <div className={`text-sm text-${s.color}-700`}>{s.label}</div>
+            <Card key={s.label} className={`p-4 bg-gradient-to-br ${colors[s.color]} border-2 border-opacity-50 rounded-2xl`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl bg-white/50 flex items-center justify-center shrink-0`}>
+                  <Icon className={`w-5 h-5 text-${s.color}-600`} />
+                </div>
+                <div>
+                  <div className={`text-xl font-black text-${s.color}-900`}>{s.value}</div>
+                  <div className={`text-[10px] uppercase font-bold tracking-wider opacity-60 text-${s.color}-700`}>{s.label}</div>
+                </div>
+              </div>
             </Card>
           );
         })}
       </div>
 
-      <Tabs defaultValue="assignments" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-white border shadow-sm rounded-xl p-1">
+          <TabsTrigger value="courses" className="rounded-lg">{t.myCourses}</TabsTrigger>
           <TabsTrigger value="assignments" className="rounded-lg">{t.assignments}</TabsTrigger>
           <TabsTrigger value="students" className="rounded-lg">{t.students}</TabsTrigger>
           <TabsTrigger value="analytics" className="rounded-lg">{t.analytics}</TabsTrigger>
         </TabsList>
+
+        {/* Courses Tab */}
+        <TabsContent value="courses" className="space-y-6">
+          <Card className="p-4 rounded-2xl border border-gray-100">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-black text-gray-900">{t.manageYourCourses}</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {courses.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-gray-400 italic">No courses created yet.</div>
+              ) : (
+                courses.map((course) => (
+                  <Card key={course.id} className="p-4 hover:shadow-lg transition-all border-gray-100 rounded-2xl group">
+                    <div className="aspect-video rounded-xl bg-gray-100 mb-3 overflow-hidden relative">
+                      <img
+                        src={course.imageUrl || course.image || `https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=400`}
+                        alt={course.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 right-2 flex gap-1">
+                      </div>
+                    </div>
+                    <h3 className="font-bold text-gray-900 mb-1">{course.title}</h3>
+                    <p className="text-xs text-gray-500 line-clamp-2 mb-4">{course.description}</p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 rounded-xl text-xs"
+                        onClick={async () => {
+                          setSelectedCourse(course);
+                          setIsMaterialsModalOpen(true);
+                          setUploadingMaterial(true);
+                          try {
+                            const mats = await materialService.getAll();
+                            setCourseMaterials(mats.filter((m: any) => m.courseId === course.id));
+                          } finally {
+                            setUploadingMaterial(false);
+                          }
+                        }}
+                      >
+                        {t.materials}
+                      </Button>
+                      <Link to={`/lesson/${course.id}/play`} className="flex-1">
+                        <Button size="sm" className="w-full bg-gray-900 rounded-xl text-xs">
+                          {t.view}
+                        </Button>
+                      </Link>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </Card>
+        </TabsContent>
 
         {/* Assignments Tab */}
         <TabsContent value="assignments" className="space-y-6">
@@ -333,10 +426,10 @@ export function TeacherDashboard() {
               <Card key={student.id} className="p-5 hover:shadow-lg transition-all rounded-2xl border border-gray-100 group">
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-2xl shrink-0">
-                    {student.avatar}
+                    {student.avatar || "👤"}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-black text-gray-900 truncate">{student.name}</h3>
+                    <h3 className="font-black text-gray-900 truncate">{student.firstName} {student.lastName}</h3>
                     <p className="text-sm text-gray-500">{student.class}</p>
                     <div className="flex items-center gap-1 mt-0.5">
                       <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
@@ -411,15 +504,15 @@ export function TeacherDashboard() {
                 <Award className="w-5 h-5 text-amber-500" /> {t.topPerformers}
               </h3>
               <div className="space-y-3">
-                {teacherData.students.sort((a, b) => b.averageGrade - a.averageGrade).slice(0, 5).map((student, index) => (
+                {students.sort((a, b) => (b.averageGrade || 0) - (a.averageGrade || 0)).slice(0, 5).map((student, index) => (
                   <div key={student.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                     <div className="text-xl">{index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`}</div>
-                    <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-sm">{student.avatar}</div>
+                    <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-sm">{student.avatar || "👤"}</div>
                     <div className="flex-1">
-                      <p className="font-semibold text-sm text-gray-900">{student.name}</p>
-                      <p className="text-xs text-gray-500">{student.class}</p>
+                      <p className="font-semibold text-sm text-gray-900">{student.firstName} {student.lastName}</p>
+                      <p className="text-xs text-gray-500">{student.grade || student.class}</p>
                     </div>
-                    <div className="text-base font-black text-purple-600">{student.averageGrade}%</div>
+                    <div className="text-base font-black text-purple-600">{student.averageGrade || 0}%</div>
                   </div>
                 ))}
               </div>
@@ -430,12 +523,12 @@ export function TeacherDashboard() {
                 <AlertCircle className="w-5 h-5 text-orange-600" /> {t.needsAttention}
               </h3>
               <div className="space-y-3">
-                {teacherData.students.filter(s => s.averageGrade < 75 || s.assignmentsPending > 2).map((student) => (
+                {students.filter(s => (s.averageGrade || 0) < 75 || (s.assignmentsPending || 0) > 2).map((student) => (
                   <div key={student.id} className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl border border-orange-100">
-                    <div className="w-9 h-9 bg-gradient-to-br from-orange-400 to-red-400 rounded-full flex items-center justify-center text-sm">{student.avatar}</div>
+                    <div className="w-9 h-9 bg-gradient-to-br from-orange-400 to-red-400 rounded-full flex items-center justify-center text-sm">{student.avatar || "👤"}</div>
                     <div className="flex-1">
-                      <p className="font-semibold text-sm text-gray-900">{student.name}</p>
-                      <p className="text-xs text-gray-500">{student.averageGrade < 75 && `Low grade: ${student.averageGrade}%`}{student.averageGrade < 75 && student.assignmentsPending > 2 && " · "}{student.assignmentsPending > 2 && `${student.assignmentsPending} pending`}</p>
+                      <p className="font-semibold text-sm text-gray-900">{student.firstName} {student.lastName}</p>
+                      <p className="text-xs text-gray-500">{(student.averageGrade || 0) < 75 && `Low grade: ${student.averageGrade}%`}{(student.averageGrade || 0) < 75 && (student.assignmentsPending || 0) > 2 && " · "}{(student.assignmentsPending || 0) > 2 && `${student.assignmentsPending} pending`}</p>
                     </div>
                     <Button size="sm" variant="outline" className="rounded-xl text-xs border-orange-200 text-orange-700 hover:bg-orange-50" onClick={() => openContact(student)}>
                       {t.contact}
@@ -630,7 +723,7 @@ export function TeacherDashboard() {
               <div className="flex items-center justify-between mb-5">
                 <div>
                   <h2 className="text-xl font-black text-gray-900">Contact Student</h2>
-                  <p className="text-sm text-gray-500">Message: {activeStudent.name}</p>
+                  <p className="text-sm text-gray-500">Message: {activeStudent.firstName} {activeStudent.lastName}</p>
                 </div>
                 <button onClick={closeModal} className="p-2 rounded-xl hover:bg-gray-100"><X className="w-5 h-5 text-gray-500" /></button>
               </div>
@@ -665,6 +758,164 @@ export function TeacherDashboard() {
           </Card>
         </div>
       )}
+
+      {/* Add/Edit Course Modal (View Only for Teachers now, but keeping modal structure if needed later, though usually they shouldn't edit) */}
+      {isCourseModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="max-w-xl w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-black text-gray-900">{editingCourse?.title}</h2>
+                <Button variant="outline" onClick={() => setIsCourseModalOpen(false)} className="rounded-full">
+                  {t.close}
+                </Button>
+              </div>
+
+              <form className="space-y-4" onSubmit={async (e) => {
+                e.preventDefault();
+                setIsCourseModalOpen(false);
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">{t.courseTitle}</label>
+                    <Input name="title" defaultValue={editingCourse?.title} disabled className="rounded-xl" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">{t.category}</label>
+                      <Select name="category" defaultValue={editingCourse?.category || "Math"} disabled>
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Math">Math</SelectItem>
+                          <SelectItem value="Science">Science</SelectItem>
+                          <SelectItem value="Reading">Reading</SelectItem>
+                          <SelectItem value="Writing">Writing</SelectItem>
+                          <SelectItem value="Art">Art</SelectItem>
+                          <SelectItem value="Music">Music</SelectItem>
+                          <SelectItem value="Coding">Coding</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">{t.level}</label>
+                      <Select name="level" defaultValue={editingCourse?.level || "Beginner"} disabled>
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Beginner">{t.beginner}</SelectItem>
+                          <SelectItem value="Intermediate">{t.intermediate}</SelectItem>
+                          <SelectItem value="Advanced">{t.advanced}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">{t.description}</label>
+                    <textarea
+                      name="description"
+                      defaultValue={editingCourse?.description}
+                      disabled
+                      className="w-full border-2 border-gray-100 rounded-xl p-3 min-h-[100px] text-sm focus:outline-none transition-all resize-none bg-gray-50"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">{t.ageRange}</label>
+                      <Input name="ageRange" defaultValue={editingCourse?.targetAgeGroup || editingCourse?.ageRange || "6-8"} disabled className="rounded-xl bg-gray-50" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">{t.emoji}</label>
+                      <Input name="image" defaultValue={editingCourse?.imageUrl || editingCourse?.image || "🔢"} disabled className="rounded-xl bg-gray-50" />
+                    </div>
+                  </div>
+
+                  {/* Inline Materials Management */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                      <FolderOpen className="w-4 h-4 text-purple-600" /> {t.courseMaterials}
+                    </h3>
+
+                    {editingCourse ? (
+                      <div className="space-y-3">
+                        <div className="max-h-40 overflow-y-auto space-y-2 pr-1">
+                          {courses.find(c => c.id === editingCourse.id)?.materials?.map((mat: any) => (
+                            <div key={mat.id} className="flex items-center justify-between p-2.5 bg-white border border-gray-100 rounded-xl group hover:border-purple-200">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-gray-400" />
+                                <span className="text-xs font-medium text-gray-700 truncate max-w-[150px]">{mat.name}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                        <p className="text-xs text-gray-500 italic">No materials.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsCourseModalOpen(false)} className="rounded-xl w-full">
+                    {t.close}
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Manage Materials Modal */}
+      {isMaterialsModalOpen && selectedCourse && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="max-w-2xl w-full max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-xl font-black text-gray-900">{t.materials}</h2>
+                <p className="text-xs text-gray-500">{selectedCourse.title}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setIsMaterialsModalOpen(false)} className="rounded-full">
+                {t.close}
+              </Button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {/* Removed upload section for teachers */}
+
+              <div className="space-y-2">
+                {uploadingMaterial ? (
+                  <div className="py-8 text-center text-gray-400 italic">Loading materials...</div>
+                ) : courseMaterials.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400 italic">No materials uploaded yet.</div>
+                ) : (
+                  courseMaterials.map((mat) => (
+                    <div key={mat.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl hover:shadow-sm transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-gray-100 transition-colors">
+                          <FileText className="w-4 h-4 text-gray-50" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">{mat.name}</p>
+                          <p className="text-[10px] text-gray-400 uppercase tracking-wider">{mat.type || 'DOCUMENT'}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {/* AI Exam button removed for teachers */}
+                        {/* Delete button removed for teachers */}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
     </div>
   );
 }

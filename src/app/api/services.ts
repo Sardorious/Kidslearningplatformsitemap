@@ -111,17 +111,36 @@ export const materialService = {
     delete: async (id: number) => {
         const response = await api.delete(`/admin/materials/${id}`);
         return response.data;
+    },
+    // AI Question Generation Endpoints
+    generateQuestions: async (materialId: number, count: number = 5) => {
+        const response = await api.post(`/admin/materials/${materialId}/generate-questions`, { count });
+        return response.data;
+    },
+    getQuestions: async (materialId: number) => {
+        const response = await api.get(`/admin/materials/${materialId}/questions`);
+        return response.data;
+    },
+    saveQuestions: async (materialId: number, questions: any[]) => {
+        const response = await api.post(`/admin/materials/${materialId}/questions`, { questions });
+        return response.data;
     }
 };
 
 // Files API
 export const fileService = {
-    upload: async (file: File) => {
+    upload: async (file: File, onProgress?: (percent: number) => void) => {
         const formData = new FormData();
         formData.append('file', file);
         const response = await api.post('/files/upload', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
+            },
+            onUploadProgress: (progressEvent) => {
+                if (onProgress && progressEvent.total) {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    onProgress(percentCompleted);
+                }
             },
         });
         return response.data;

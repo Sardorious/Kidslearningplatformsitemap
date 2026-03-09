@@ -24,9 +24,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Clear token and redirect to login if unauthorized
+      // Clear invalid/expired token silently.
+      // ProtectedRoute handles redirecting to /login for protected pages.
+      // Public pages (Home, Courses) must NOT be force-redirected.
       localStorage.removeItem('token');
-      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

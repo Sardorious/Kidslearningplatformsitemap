@@ -176,7 +176,9 @@ export function ParentDashboard() {
         <TabsList className="bg-white border shadow-sm rounded-xl p-1">
           <TabsTrigger value="overview" className="rounded-lg">{t.overview}</TabsTrigger>
           <TabsTrigger value="performance" className="rounded-lg">{t.performance}</TabsTrigger>
+          <TabsTrigger value="achievements" className="rounded-lg">{t.achievements}</TabsTrigger>
           <TabsTrigger value="activity" className="rounded-lg">{t.activity}</TabsTrigger>
+          <TabsTrigger value="payments" className="rounded-lg">Fees & Payments</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -302,6 +304,158 @@ export function ParentDashboard() {
               </div>
               <p className="text-sm text-gray-700">Consider spending more time on {child.needsImprovement[0] || "Science"} topics to strengthen this area. Interactive experiments could help boost engagement! 🔬</p>
             </Card>
+          </div>
+          {/* Performance Tab content... */}
+        </TabsContent>
+
+        {/* Achievements Tab */}
+        <TabsContent value="achievements" className="space-y-6">
+          <Card className="p-6 rounded-2xl border border-gray-100">
+            <h3 className="text-lg font-black text-gray-900 mb-6 flex items-center gap-2">
+              <Award className="w-5 h-5 text-purple-600" /> Earned Badges & Achievements
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {[
+                { id: 1, title: "Math Whiz", icon: "🏆", date: "2024-05-15", color: "amber" },
+                { id: 2, title: "Reading Star", icon: "⭐", date: "2024-05-10", color: "yellow" },
+                { id: 3, title: "Perfect Week", icon: "🎯", date: "2024-05-01", color: "blue" },
+                { id: 4, title: "Artist", icon: "🎨", date: "2024-04-20", color: "pink" },
+                { id: 5, title: "Science Hero", icon: "🔬", date: "2024-04-15", color: "green" },
+              ].map((achievement) => (
+                <div key={achievement.id} className="group relative flex flex-col items-center p-4 bg-gray-50 rounded-2xl border-2 border-transparent hover:border-purple-200 transition-all hover:scale-105 cursor-default">
+                  <div className="text-4xl mb-3 drop-shadow-sm group-hover:scale-110 transition-transform">{achievement.icon}</div>
+                  <h4 className="font-bold text-gray-900 text-sm text-center mb-1">{achievement.title}</h4>
+                  <p className="text-[10px] text-gray-500">{new Date(achievement.date).toLocaleDateString()}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 rounded-2xl">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-2xl shadow-sm shrink-0">🚀</div>
+              <div>
+                <h3 className="font-black text-gray-900 leading-tight">Next Milestone: Knowledge Master</h3>
+                <p className="text-sm text-gray-600 mt-0.5">Complete 10 more lessons to earn this prestigious badge!</p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="flex justify-between text-xs font-bold text-purple-700 mb-1.5 px-1">
+                <span>Progress to Badge</span>
+                <span>80%</span>
+              </div>
+              <Progress value={80} className="h-2.5 bg-white shadow-inner" />
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* Payments Tab */}
+        <TabsContent value="payments" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Outstanding Balance */}
+            <Card className="lg:col-span-2 p-6 rounded-2xl border border-gray-100 flex flex-col">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="text-lg font-black text-gray-900">Education Fees</h3>
+                  <p className="text-sm text-gray-500 italic">Manage your subscriptions and payments</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Due Amount</div>
+                  <div className="text-4xl font-black text-red-600">$120.00</div>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-8">
+                {[
+                  { id: 1, label: "Monthly Tuition Fee (June)", amount: 80.00, dueDate: "2024-06-15", status: "unpaid" },
+                  { id: 2, label: "Special Art Materials", amount: 40.00, dueDate: "2024-06-10", status: "unpaid" },
+                  { id: 3, label: "Platform Membership (Yearly)", amount: 150.00, dueDate: "2024-05-15", status: "paid" },
+                ].map(fee => (
+                  <div key={fee.id} className={`flex items-center justify-between p-4 rounded-xl border transition-all ${fee.status === 'paid' ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-red-50 hover:border-red-200'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${fee.status === 'paid' ? 'bg-green-100 text-green-600' : 'bg-red-50 text-red-500'}`}>
+                        {fee.status === 'paid' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900">{fee.label}</p>
+                        <p className="text-xs text-gray-500">Due Date: {new Date(fee.dueDate).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-black ${fee.status === 'paid' ? 'text-gray-500' : 'text-red-600'}`}>${fee.amount.toFixed(2)}</p>
+                      <span className={`text-[10px] font-black uppercase tracking-wider ${fee.status === 'paid' ? 'text-green-600' : 'text-red-400'}`}>
+                        {fee.status.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-auto pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex-1 w-full space-y-2">
+                  <p className="text-sm font-bold text-gray-700">Quick Pay via:</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      className="h-14 rounded-2xl border-2 border-cyan-100 hover:border-cyan-400 hover:bg-cyan-50 group transition-all"
+                      onClick={() => alert("Redirecting to Payme...")}
+                    >
+                      <div className="flex flex-col items-center">
+                        <span className="text-cyan-600 font-black italic text-lg group-hover:scale-110 transition-transform">Payme</span>
+                        {/* <span className="text-[10px] text-gray-400">Checkout Securely</span> */}
+                      </div>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-14 rounded-2xl border-2 border-blue-100 hover:border-blue-400 hover:bg-blue-50 group transition-all"
+                      onClick={() => alert("Redirecting to Click...")}
+                    >
+                      <div className="flex flex-col items-center">
+                        <span className="text-blue-600 font-black italic text-lg group-hover:scale-110 transition-transform">CLICK</span>
+                        {/* <span className="text-[10px] text-gray-400">Merchant Payment</span> */}
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+                <Button className="w-full sm:w-auto h-14 px-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-lg font-black shadow-lg hover:scale-[1.03] transition-all">
+                  Pay Now
+                </Button>
+              </div>
+            </Card>
+
+            {/* Payment History sidebar */}
+            <div className="space-y-6">
+              <Card className="p-5 rounded-2xl border border-gray-100">
+                <h3 className="font-bold text-gray-900 mb-4">Payment History</h3>
+                <div className="space-y-4">
+                  {[
+                    { id: 1, date: "2024-05-14", amount: 150.00, method: "Payme" },
+                    { id: 2, date: "2024-04-12", amount: 80.00, method: "Click" },
+                    { id: 3, date: "2024-03-10", amount: 80.00, method: "VISA" },
+                  ].map(h => (
+                    <div key={h.id} className="flex items-center justify-between pb-3 border-b border-gray-50 last:border-0 last:pb-0">
+                      <div>
+                        <p className="text-xs font-bold text-gray-900">Payment ID #{h.id}582</p>
+                        <p className="text-[10px] text-gray-500">{new Date(h.date).toLocaleDateString()} via {h.method}</p>
+                      </div>
+                      <p className="font-black text-sm text-gray-700 font-mono">${h.amount.toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="ghost" className="w-full mt-4 text-xs text-purple-600 font-bold hover:bg-purple-50 rounded-xl">
+                  Download All Receipts
+                </Button>
+              </Card>
+
+              <Card className="p-5 bg-indigo-900 text-white rounded-2xl overflow-hidden relative">
+                <div className="absolute -bottom-6 -right-6 w-20 h-20 bg-white/10 rounded-full" />
+                <h3 className="font-bold mb-2 relative">Help & Billing</h3>
+                <p className="text-xs text-indigo-100 mb-4 relative opacity-80">Have questions about your billing or need assistance with payments?</p>
+                <Button variant="link" className="text-white p-0 h-auto font-black text-sm relative hover:no-underline">
+                  Contact Support →
+                </Button>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 

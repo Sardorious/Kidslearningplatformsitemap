@@ -125,11 +125,51 @@ export function LessonPlayer() {
 
   const currentLesson = courseLessons[currentLessonIndex];
 
-  if (!course || !currentLesson) {
+  if (!course) {
     return (
       <div className="text-center py-20">
         <div className="text-5xl mb-4">😕</div>
-        <p className="text-xl font-bold text-gray-700 mb-2">Course or lesson not found</p>
+        <p className="text-xl font-bold text-gray-700 mb-2">Course not found</p>
+        <p className="text-gray-500 mb-6">This course may have been removed or doesn't exist.</p>
+        <Link to="/courses">
+          <Button className="rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {t.backToCourses}
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  // Handle courses with zero lessons gracefully
+  if (courseLessons.length === 0) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-4 px-3 sm:px-4 md:px-6">
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+          <div className="flex items-center gap-2 text-sm text-gray-500 min-w-0 flex-1">
+            <Link to="/courses" className="hover:text-purple-600 transition-colors flex items-center gap-1 shrink-0">
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">{t.backToCourses}</span>
+              <span className="sm:hidden">Back</span>
+            </Link>
+            <span className="shrink-0">/</span>
+            <span className="text-gray-900 font-semibold truncate">{course.title}</span>
+          </div>
+        </div>
+        <Card className="text-center py-20 rounded-2xl border border-gray-100 shadow-sm">
+          <div className="text-5xl mb-4 text-gray-300">📚</div>
+          <p className="text-xl font-bold text-gray-700 mb-2">No content available yet</p>
+          <p className="text-gray-500 mb-6 max-w-sm mx-auto">This course doesn't have any lessons or materials added to it yet. Check back later!</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!currentLesson) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-5xl mb-4">😕</div>
+        <p className="text-xl font-bold text-gray-700 mb-2">Lesson not found</p>
         <p className="text-gray-500 mb-6">This lesson may have been removed or doesn't exist.</p>
         <Link to="/courses">
           <Button className="rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white">

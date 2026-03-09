@@ -12,7 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useAuth } from "../contexts/AuthContext";
 
 function CourseCardSkeleton() {
   return (
@@ -43,6 +52,7 @@ const categoryEmoji: Record<string, string> = {
 };
 
 export function CourseCatalog() {
+  const { user } = useAuth();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,6 +60,8 @@ export function CourseCatalog() {
   const [selectedAge, setSelectedAge] = useState("all");
   const [selectedLevel, setSelectedLevel] = useState("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -67,6 +79,11 @@ export function CourseCatalog() {
     fetchCourses();
   }, []);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedAge, selectedLevel]);
+
   const categories = ["all", ...Array.from(new Set(courses.map((c) => c.category || "General")))];
   const ageGroups = ["all", "5-7", "6-8", "7-10", "8-12", "6-12", "7-11"];
   const levels = ["all", "Beginner", "Intermediate", "Advanced", "All Levels"];
@@ -81,6 +98,12 @@ export function CourseCatalog() {
     return matchesSearch && matchesCategory && matchesAge && matchesLevel;
   });
 
+  const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
+  const paginatedCourses = filteredCourses.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const hasActiveFilters = searchQuery || selectedCategory !== "all" || selectedAge !== "all" || selectedLevel !== "all";
 
   const clearFilters = () => {
@@ -92,18 +115,10 @@ export function CourseCatalog() {
 
   return (
     <div className="space-y-6">
-      {/* Hero Header */}
-      <div className="text-center py-8 px-4">
-        <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-3">
-          {t.exploreCourses} 🚀
-        </h1>
-        <p className="text-base md:text-lg text-gray-500 max-w-xl mx-auto">
-          {t.findPerfectCourse}
-        </p>
-
-        {/* Mobile filter toggle */}
+      {/* Hero Header - Mobile Toggle only */}
+      <div className="md:hidden flex justify-center py-2 px-4">
         <button
-          className="mt-4 md:hidden inline-flex items-center gap-2 bg-white border border-purple-200 text-purple-700 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm"
+          className="inline-flex items-center gap-2 bg-white border border-purple-200 text-purple-700 px-4 py-2 rounded-xl text-sm font-semibold shadow-sm"
           onClick={() => setFiltersOpen(!filtersOpen)}
         >
           <SlidersHorizontal className="w-4 h-4" />
@@ -114,72 +129,74 @@ export function CourseCatalog() {
       {/* Filters Panel */}
       <div className={`${filtersOpen ? "block" : "hidden"} md:block`}>
         <Card className="p-5 bg-white shadow-sm border border-gray-100 rounded-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-purple-600" />
-              <h2 className="text-base font-bold text-gray-900">{t.filters}</h2>
-            </div>
-            {hasActiveFilters && (
+          {hasActiveFilters && (
+            <div className="flex justify-end mb-2">
               <button
                 onClick={clearFilters}
-                className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1 font-medium"
+                className="text-[10px] text-red-500 hover:text-red-600 flex items-center gap-1 font-bold uppercase tracking-wider"
               >
-                <X className="w-3 h-3" /> {t.clearAll}
+                <X className="w-2.5 h-2.5" /> {t.clearAll}
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-3">
             {/* Search */}
-            <div className="relative">
+            <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
                 type="text"
                 placeholder={t.searchCourses}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 rounded-xl border-gray-100 bg-gray-50 focus:bg-white transition-colors"
+                className="pl-9 rounded-xl border-gray-100 bg-gray-50 focus:bg-white transition-colors h-10"
               />
             </div>
 
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="rounded-xl border-gray-100 bg-gray-50">
-                <SelectValue placeholder={t.allCategories} />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat === "all" ? t.allCategories : `${categoryEmoji[cat] || categoryEmoji.default} ${cat}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-full sm:w-48">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="rounded-xl border-gray-100 bg-gray-50 h-10">
+                  <SelectValue placeholder={t.allCategories} />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat === "all" ? t.allCategories : `${categoryEmoji[cat] || categoryEmoji.default} ${cat}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={selectedAge} onValueChange={setSelectedAge}>
-              <SelectTrigger className="rounded-xl border-gray-100 bg-gray-50">
-                <SelectValue placeholder={t.allAges} />
-              </SelectTrigger>
-              <SelectContent>
-                {ageGroups.map((age) => (
-                  <SelectItem key={age} value={age}>
-                    {age === "all" ? t.allAges : `${t.ages} ${age}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-full sm:w-36">
+              <Select value={selectedAge} onValueChange={setSelectedAge}>
+                <SelectTrigger className="rounded-xl border-gray-100 bg-gray-50 h-10">
+                  <SelectValue placeholder={t.allAges} />
+                </SelectTrigger>
+                <SelectContent>
+                  {ageGroups.map((age) => (
+                    <SelectItem key={age} value={age}>
+                      {age === "all" ? t.allAges : `${t.ages} ${age}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-              <SelectTrigger className="rounded-xl border-gray-100 bg-gray-50">
-                <SelectValue placeholder={t.allLevels} />
-              </SelectTrigger>
-              <SelectContent>
-                {levels.map((level) => (
-                  <SelectItem key={level} value={level}>
-                    {level === "all" ? t.allLevels : level}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-full sm:w-40">
+              <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                <SelectTrigger className="rounded-xl border-gray-100 bg-gray-50 h-10">
+                  <SelectValue placeholder={t.allLevels} />
+                </SelectTrigger>
+                <SelectContent>
+                  {levels.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {level === "all" ? t.allLevels : level}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Active filter chips */}
@@ -212,102 +229,167 @@ export function CourseCatalog() {
 
       {/* Results Info */}
       {!loading && (
-        <p className="text-sm text-gray-500 font-medium">
-          {t.foundCourses.replace("{count}", String(filteredCourses.length))}
-        </p>
+        <div className="flex items-center justify-between px-1">
+          <p className="text-sm text-gray-500 font-medium">
+            {t.foundCourses.replace("{count}", String(filteredCourses.length))}
+          </p>
+          {totalPages > 1 && (
+            <p className="text-xs text-gray-400">
+              Page {currentPage} of {totalPages}
+            </p>
+          )}
+        </div>
       )}
 
-      {/* Course Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {Array(6).fill(0).map((_, i) => <CourseCardSkeleton key={i} />)}
-        </div>
-      ) : filteredCourses.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredCourses.map((course) => (
-            <Card
-              key={course.id}
-              className="overflow-hidden border border-gray-100 hover:border-purple-300 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 rounded-2xl group"
-            >
-              {/* Thumbnail */}
-              <div className="relative h-48 overflow-hidden bg-gradient-to-br from-purple-100 to-pink-100">
-                <img
-                  src={
-                    course.imageUrl ||
-                    course.image ||
-                    `https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=600`
-                  }
-                  alt={course.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  onError={(e: any) => {
-                    e.target.src = `https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=600`;
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                <div className="absolute top-3 left-3">
-                  <span className="bg-white/90 backdrop-blur-sm text-xs font-bold px-3 py-1 rounded-full text-purple-700 shadow-sm">
-                    {categoryEmoji[course.category || "General"] || categoryEmoji.default} {course.category || "General"}
-                  </span>
-                </div>
-                {course.enrolled && (
-                  <div className="absolute top-3 right-3">
-                    <span className="bg-emerald-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                      ✓ Enrolled
+      {/* Course Table List */}
+      <Card className="overflow-hidden border border-gray-100 shadow-sm rounded-2xl bg-white">
+        <Table>
+          <TableHeader className="bg-gray-50/50">
+            <TableRow>
+              <TableHead className="w-[80px] text-xs uppercase tracking-wider font-bold text-gray-500">Preview</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-bold text-gray-500">{t.courseTitle}</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-bold text-gray-500 hidden sm:table-cell">{t.level}</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-bold text-gray-500 hidden md:table-cell">{t.lessons}</TableHead>
+              <TableHead className="text-xs uppercase tracking-wider font-bold text-gray-500 hidden lg:table-cell">Duration</TableHead>
+              <TableHead className="text-right text-xs uppercase tracking-wider font-bold text-gray-500">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              Array(5).fill(0).map((_, i) => (
+                <TableRow key={i} className="animate-pulse">
+                  <TableCell><div className="w-12 h-12 bg-gray-100 rounded-lg" /></TableCell>
+                  <TableCell>
+                    <div className="h-4 bg-gray-100 rounded w-48 mb-2" />
+                    <div className="h-3 bg-gray-50 rounded w-24" />
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell"><div className="h-4 bg-gray-50 rounded w-20" /></TableCell>
+                  <TableCell className="hidden md:table-cell"><div className="h-4 bg-gray-50 rounded w-12" /></TableCell>
+                  <TableCell className="hidden lg:table-cell"><div className="h-4 bg-gray-50 rounded w-16" /></TableCell>
+                  <TableCell className="text-right"><div className="h-9 bg-gray-100 rounded-xl w-32 ml-auto" /></TableCell>
+                </TableRow>
+              ))
+            ) : paginatedCourses.length > 0 ? (
+              paginatedCourses.map((course) => (
+                <TableRow key={course.id} className="group hover:bg-purple-50/30 transition-colors">
+                  <TableCell>
+                    <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-sm border border-gray-100">
+                      <img
+                        src={course.imageUrl || course.image || `https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=100`}
+                        alt=""
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-900 group-hover:text-purple-700 transition-colors">{course.title}</span>
+                      <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                        {categoryEmoji[course.category || "General"] || categoryEmoji.default} {course.category || "General"}
+                        {course.enrolled && <span className="text-emerald-600 font-bold ml-1 flex items-center gap-0.5"><span className="w-1 h-1 bg-emerald-600 rounded-full" /> Enrolled</span>}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                      {course.level || "Beginner"}
                     </span>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <BookOpen className="w-3.5 h-3.5 text-purple-400" />
+                      {course.lessonsCount || 0}
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <Clock className="w-3.5 h-3.5 text-blue-400" />
+                      {course.duration || "Flexible"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {course.enrolled ? (
+                      <Link to={`/lesson/${course.id}/play`}>
+                        <Button size="sm" className="h-9 px-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl text-xs font-bold shadow-sm transition-all hover:shadow-md">
+                          Continue →
+                        </Button>
+                      </Link>
+                    ) : (
+                      <div className="flex justify-end gap-2">
+                        <Link to={`/lesson/${course.id}/play`}>
+                          <Button size="sm" variant="outline" className="h-9 px-4 rounded-xl text-xs font-bold border-gray-200">
+                            {t.view}
+                          </Button>
+                        </Link>
+                        {user?.role !== 'TEACHER' && (
+                          <Link to={`/lesson/${course.id}/play`}>
+                            <Button size="sm" className="h-9 px-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-xs font-bold shadow-sm transition-all hover:shadow-md">
+                              Enroll →
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center space-y-3">
+                    <div className="text-4xl opacity-50">🔍</div>
+                    <div className="font-bold text-gray-900">{t.noCourses}</div>
+                    <p className="text-xs text-gray-500 max-w-xs">{t.tryAdjusting}</p>
+                    <Button onClick={clearFilters} variant="outline" size="sm" className="rounded-full border-purple-200 text-purple-700 h-8 text-[10px]">
+                      {t.clearFilters}
+                    </Button>
                   </div>
-                )}
-              </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
 
-              {/* Body */}
-              <div className="p-5">
-                <h3 className="text-lg font-black text-gray-900 mb-1.5 line-clamp-1">{course.title}</h3>
-                <p className="text-sm text-gray-500 mb-4 line-clamp-2 leading-relaxed">
-                  {course.description || "Start your learning journey with this course."}
-                </p>
-
-                {/* Meta info */}
-                <div className="flex flex-wrap gap-3 mb-4 pb-4 border-b border-gray-100">
-                  <span className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <BookOpen className="w-3.5 h-3.5 text-purple-400" />
-                    {course.lessonsCount || 0} {t.lessons}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <Star className="w-3.5 h-3.5 text-amber-400" />
-                    {course.level || "Beginner"}
-                  </span>
-                  <span className="flex items-center gap-1.5 text-xs text-gray-600">
-                    <Clock className="w-3.5 h-3.5 text-blue-400" />
-                    {course.duration || "Flexible"}
-                  </span>
-                </div>
-
-                {course.enrolled ? (
-                  <Link to={`/lesson/${course.id}/play`}>
-                    <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl text-sm font-bold transition-all hover:shadow-md">
-                      Continue Learning →
-                    </Button>
-                  </Link>
-                ) : (
-                  <Link to={`/lesson/${course.id}/play`}>
-                    <Button className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-sm font-bold transition-all hover:shadow-md">
-                      {t.enrollNow} →
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
-          <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-xl font-black text-gray-900 mb-2">{t.noCourses}</h3>
-          <p className="text-gray-500 mb-6 max-w-xs mx-auto">{t.tryAdjusting}</p>
-          <Button onClick={clearFilters} variant="outline" className="rounded-full border-purple-200 text-purple-700">
-            {t.clearFilters}
-          </Button>
-        </div>
-      )}
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-gray-50 flex items-center justify-center gap-2 bg-gray-50/30">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              className="rounded-xl border-gray-200 text-gray-600 h-8 px-3"
+            >
+              ← Previous
+            </Button>
+            <div className="flex gap-1 px-2">
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <Button
+                  key={i}
+                  variant={currentPage === i + 1 ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold ${currentPage === i + 1
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-gray-400 hover:text-purple-600 hover:bg-purple-50"
+                    }`}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              className="rounded-xl border-gray-200 text-gray-600 h-8 px-3"
+            >
+              Next →
+            </Button>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

@@ -75,9 +75,7 @@ export function StudentDashboard() {
         <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-white/10 rounded-full" />
 
         <div className="flex flex-col md:flex-row items-center gap-6 relative">
-          <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-4xl border-4 border-white/30 shrink-0">
-            {studentProgress.avatar}
-          </div>
+          {/* Avatar removed as per user request */}
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-2xl md:text-3xl font-black mb-0.5">{displayProfile.name}</h1>
             <p className="opacity-90 mb-3 text-sm">{displayProfile.grade} · {t.learningChampion} 🏆</p>
@@ -109,13 +107,13 @@ export function StudentDashboard() {
         ].map((s) => {
           const Icon = s.icon;
           return (
-            <Card key={s.label} className={`p-5 bg-gradient-to-br from-${s.color}-50 to-${s.color}-100 border-2 border-${s.color}-200 rounded-2xl`}>
-              <div className="flex items-center justify-between mb-3">
-                <Icon className={`w-7 h-7 text-${s.color}-600`} />
-                <TrendingUp className={`w-4 h-4 text-${s.color}-400`} />
+            <Card key={s.label} className={`p-3 bg-gradient-to-br from-${s.color}-50 to-${s.color}-100 border-2 border-${s.color}-200 rounded-2xl`}>
+              <div className="flex items-center justify-between mb-2">
+                <Icon className={`w-5 h-5 text-${s.color}-600`} />
+                <TrendingUp className={`w-3 h-3 text-${s.color}-400`} />
               </div>
-              <div className={`text-3xl font-black text-${s.color}-900 mb-1`}>{s.value}</div>
-              <div className={`text-xs text-${s.color}-700`}>{s.label}</div>
+              <div className={`text-xl font-black text-${s.color}-900 mb-0.5`}>{s.value}</div>
+              <div className={`text-[10px] uppercase tracking-wider font-bold text-${s.color}-700 opacity-80`}>{s.label}</div>
             </Card>
           );
         })}
@@ -139,7 +137,7 @@ export function StudentDashboard() {
                 {courses.map((course: any) => {
                   const courseProgress = progress.filter((p: any) => p.courseId === course.id);
                   const completedCount = courseProgress.filter((p: any) => p.isCompleted).length;
-                  const totalCount = courseProgress.length || 1;
+                  const totalCount = course.lessonCount || 1;
                   const pct = Math.round((completedCount / totalCount) * 100);
 
                   return (
@@ -181,21 +179,32 @@ export function StudentDashboard() {
           <div>
             <h2 className="text-xl font-black text-gray-900 mb-4">{t.recentActivity}</h2>
             <Card className="divide-y divide-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
-              {displayProfile.recentActivity.map((activity: any, index: number) => (
-                <div key={index} className="p-4 hover:bg-gray-50 transition-colors flex items-center gap-3">
-                  <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shrink-0">
-                    <BookOpen className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-gray-900 truncate">{activity.course}</p>
-                    <p className="text-xs text-gray-500 truncate">{activity.lesson}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-gray-400">{activity.date}</p>
-                    <p className="text-xs text-gray-400">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
+              {progress.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm italic">No recent activity yet. Start a lesson!</div>
+              ) : (
+                progress
+                  .filter((p: any) => p.isCompleted)
+                  .sort((a: any, b: any) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime())
+                  .slice(0, 5)
+                  .map((activity: any, index: number) => {
+                    const course = courses.find(c => c.id === activity.courseId);
+                    return (
+                      <div key={index} className="p-4 hover:bg-gray-50 transition-colors flex items-center gap-3">
+                        <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shrink-0">
+                          <BookOpen className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-gray-900 truncate">{activity.lessonTitle || "Lesson Completed"}</p>
+                          <p className="text-xs text-gray-500 truncate">{course?.title || "In enrolled course"}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-gray-400">{activity.completedAt ? new Date(activity.completedAt).toLocaleDateString() : 'Today'}</p>
+                          <p className="text-xs text-gray-400">{activity.completedAt ? new Date(activity.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
             </Card>
           </div>
         </div>
@@ -207,10 +216,17 @@ export function StudentDashboard() {
             <h2 className="text-xl font-black text-gray-900 mb-3">{t.achievements}</h2>
             <Card className="p-4 rounded-2xl border border-gray-100">
               <div className="grid grid-cols-3 gap-2">
-                {displayProfile.achievements.map((achievement: any) => (
+                {[
+                  { id: 1, title: "Math Whiz", icon: "🏆", condition: completedLessonsCount >= 5 },
+                  { id: 2, title: "Reading Star", icon: "⭐", condition: profile?.xp >= 50 },
+                  { id: 3, title: "Perfect Week", icon: "🎯", condition: profile?.xp >= 100 },
+                  { id: 4, title: "Music Master", icon: "🎵", condition: profile?.xp >= 200 },
+                  { id: 5, title: "Science Genius", icon: "🔬", condition: completedLessonsCount >= 10 },
+                  { id: 6, title: "Art Creator", icon: "🎨", condition: completedLessonsCount >= 1 },
+                ].map((achievement: any) => (
                   <div
                     key={achievement.id}
-                    className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 transition-all ${achievement.earned ? "bg-gradient-to-br from-amber-100 to-yellow-200 border-2 border-amber-300 shadow-sm" : "bg-gray-100 opacity-40"}`}
+                    className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 transition-all ${achievement.condition ? "bg-gradient-to-br from-amber-100 to-yellow-200 border-2 border-amber-300 shadow-sm" : "bg-gray-100 opacity-40"}`}
                   >
                     <div className="text-2xl mb-0.5">{achievement.icon}</div>
                     <div className="text-xs text-center font-semibold text-gray-900 leading-tight">{achievement.title}</div>

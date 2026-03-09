@@ -22,6 +22,7 @@ export interface Course {
     enrolledStudents?: number;
     createdAt?: string;
     status?: string;
+    ageRange?: string;
 }
 
 export interface Lesson {

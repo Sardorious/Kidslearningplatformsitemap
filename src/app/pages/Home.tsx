@@ -6,6 +6,7 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useAuth } from "../contexts/AuthContext";
 import { userService, courseService } from "../api/services";
 
 function SkeletonCard() {
@@ -35,13 +36,21 @@ const statCards = [
   { key: "achievements", label: (t: any) => t.achievements, icon: Star, from: "from-purple-500", to: "to-pink-400", bg: "from-purple-50 to-pink-50", text: "text-purple-700", border: "border-purple-100" },
 ];
 
+import { useNavigate } from "react-router";
+
 export function Home() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const { user } = useAuth(); // Need to import useAuth
   const [profile, setProfile] = useState<any>(null);
   const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (user?.role === 'TEACHER') {
+      navigate('/teacher');
+      return;
+    }
     const fetchData = async () => {
       try {
         const [profData, coursesData] = await Promise.all([
@@ -222,8 +231,8 @@ export function Home() {
             <div
               key={achievement.id}
               className={`p-4 rounded-2xl text-center transition-all border-2 ${achievement.earned
-                  ? "bg-gradient-to-br from-amber-50 to-yellow-100 border-amber-300 shadow-sm hover:shadow-md hover:scale-105"
-                  : "bg-gray-50 border-gray-100 opacity-40 grayscale"
+                ? "bg-gradient-to-br from-amber-50 to-yellow-100 border-amber-300 shadow-sm hover:shadow-md hover:scale-105"
+                : "bg-gray-50 border-gray-100 opacity-40 grayscale"
                 }`}
             >
               <div className="text-3xl mb-1.5">{achievement.icon}</div>

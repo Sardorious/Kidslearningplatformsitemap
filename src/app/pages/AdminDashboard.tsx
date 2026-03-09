@@ -21,7 +21,10 @@ import {
   FileText,
   Image as ImageIcon,
   Music,
-  Code
+  Code,
+  Sparkles,
+  Wand2,
+  Check
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -69,6 +72,20 @@ export function AdminDashboard() {
   const [questionForm, setQuestionForm] = useState({ questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: '' });
   const [addingQuestion, setAddingQuestion] = useState(false);
   const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("teachers");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // AI Question Generation State
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
+  const [selectedAiMaterial, setSelectedAiMaterial] = useState<any>(null);
+  const [aiQuestions, setAiQuestions] = useState<any[]>([]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery]);
 
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -301,12 +318,17 @@ export function AdminDashboard() {
     try {
       if (!materialForm.file) return alert("Please select a file first.");
       if (!materialForm.courseId) return alert("Please select a course first.");
-      const res = await fileService.upload(materialForm.file);
+
+      setUploadProgress(0);
+      const res = await fileService.upload(materialForm.file, (percent) => {
+        setUploadProgress(percent);
+      });
+
       const newMaterial = await materialService.create({
         name: materialForm.name,
         type: materialForm.type,
         courseId: parseInt(materialForm.courseId),
-        url: res.url ?? res.Url,
+        url: res.url || res.Url || res,
         size: Math.round(materialForm.file.size / 1024) + " KB"
       });
 
@@ -314,10 +336,13 @@ export function AdminDashboard() {
         ...prev,
         materials: [...prev.materials, newMaterial]
       }));
+      setUploadProgress(null);
       setSelectedModal(null);
       setMaterialForm({ name: '', type: '', courseId: '', file: null });
     } catch (err) {
+      setUploadProgress(null);
       console.error("Error uploading material", err);
+      alert("Failed to upload material. Please try again.");
     }
   };
 
@@ -478,54 +503,80 @@ export function AdminDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-          <div className="flex items-center justify-between mb-3">
-            <Users className="w-8 h-8 text-blue-600" />
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <Card
+          className="px-3 py-2 bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] flex items-center gap-3"
+          onClick={() => setActiveTab("students")}
+        >
+          <div className="p-1.5 bg-white/50 rounded-lg shrink-0">
+            <Users className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="text-3xl font-black text-blue-900 mb-1">
-            {stats.totalStudents}
+          <div className="min-w-0">
+            <div className="text-xl font-black text-blue-900 leading-none mb-0.5">
+              {stats.totalStudents}
+            </div>
+            <div className="text-[9px] uppercase tracking-wider font-bold text-blue-700 opacity-70 truncate">
+              {t.totalStudents}
+            </div>
           </div>
-          <div className="text-sm text-blue-700">{t.totalStudents}</div>
         </Card>
 
-        <Card className="p-5 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200">
-          <div className="flex items-center justify-between mb-3">
-            <GraduationCap className="w-8 h-8 text-purple-600" />
-            <Activity className="w-5 h-5 text-purple-600" />
+        <Card
+          className="px-3 py-2 bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] flex items-center gap-3"
+          onClick={() => setActiveTab("teachers")}
+        >
+          <div className="p-1.5 bg-white/50 rounded-lg shrink-0">
+            <GraduationCap className="w-5 h-5 text-purple-600" />
           </div>
-          <div className="text-3xl font-black text-purple-900 mb-1">
-            {stats.totalTeachers}
+          <div className="min-w-0">
+            <div className="text-xl font-black text-purple-900 leading-none mb-0.5">
+              {stats.totalTeachers}
+            </div>
+            <div className="text-[9px] uppercase tracking-wider font-bold text-purple-700 opacity-70 truncate">
+              {t.totalTeachers}
+            </div>
           </div>
-          <div className="text-sm text-purple-700">{t.totalTeachers}</div>
         </Card>
 
-        <Card className="p-5 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
-          <div className="flex items-center justify-between mb-3">
-            <BookOpen className="w-8 h-8 text-green-600" />
-            <TrendingUp className="w-5 h-5 text-green-600" />
+        <Card
+          className="px-3 py-2 bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] flex items-center gap-3"
+          onClick={() => setActiveTab("courses")}
+        >
+          <div className="p-1.5 bg-white/50 rounded-lg shrink-0">
+            <BookOpen className="w-5 h-5 text-green-600" />
           </div>
-          <div className="text-3xl font-black text-green-900 mb-1">
-            {stats.totalCourses}
+          <div className="min-w-0">
+            <div className="text-xl font-black text-green-900 leading-none mb-0.5">
+              {stats.totalCourses}
+            </div>
+            <div className="text-[9px] uppercase tracking-wider font-bold text-green-700 opacity-70 truncate">
+              {t.totalCourses}
+            </div>
           </div>
-          <div className="text-sm text-green-700">{t.totalCourses}</div>
         </Card>
 
-        <Card className="p-5 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200">
-          <div className="flex items-center justify-between mb-3">
-            <FolderOpen className="w-8 h-8 text-orange-600" />
-            <Calendar className="w-5 h-5 text-orange-600" />
+        <Card
+          className="px-3 py-2 bg-gradient-to-br from-orange-50 to-orange-100 border-2 border-orange-200 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] flex items-center gap-3"
+          onClick={() => setActiveTab("classes")}
+        >
+          <div className="p-1.5 bg-white/50 rounded-lg shrink-0">
+            <FolderOpen className="w-5 h-5 text-orange-600" />
           </div>
-          <div className="text-3xl font-black text-orange-900 mb-1">
-            {stats.totalClasses}
+          <div className="min-w-0">
+            <div className="text-xl font-black text-orange-900 leading-none mb-0.5">
+              {stats.totalClasses}
+            </div>
+            <div className="text-[9px] uppercase tracking-wider font-bold text-orange-700 opacity-70 truncate">
+              {t.totalClasses}
+            </div>
           </div>
-          <div className="text-sm text-orange-700">{t.totalClasses}</div>
         </Card>
+
+        {/* Materials stat removed */}
       </div>
 
       {/* Unified Filter Bar — lives alongside stats, applies to the active tab */}
-      <Card className="p-3 border border-gray-100 shadow-sm bg-white">
+      <Card className="p-2 border border-gray-100 shadow-sm bg-white">
         <div className="flex flex-col sm:flex-row gap-3 items-center">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -555,14 +606,7 @@ export function AdminDashboard() {
       </Card>
 
       {/* Main Tabs */}
-      <Tabs defaultValue="teachers" className="space-y-6">
-        <TabsList className="bg-white border shadow-sm rounded-xl p-1 flex-wrap h-auto">
-          <TabsTrigger value="teachers" className="rounded-lg">{t.teachers}</TabsTrigger>
-          <TabsTrigger value="students" className="rounded-lg">{t.students}</TabsTrigger>
-          <TabsTrigger value="classes" className="rounded-lg">{t.classes}</TabsTrigger>
-          <TabsTrigger value="courses" className="rounded-lg">{t.courses}</TabsTrigger>
-          <TabsTrigger value="materials" className="rounded-lg">{t.materials}</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
 
 
         {/* Teachers Tab */}
@@ -584,46 +628,95 @@ export function AdminDashboard() {
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading teachers...</td></tr>
-                  ) : data.teachers.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No teachers found.</td></tr>
                   ) : (
-                    data.teachers
-                      .filter(t => !searchQuery || `${t.firstName} ${t.lastName} ${t.email}`.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((teacher, idx) => (
-                        <tr key={teacher.id} className={`border-b border-gray-100 hover:bg-purple-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
-                                {teacher.firstName ? teacher.firstName.charAt(0).toUpperCase() : "T"}
-                              </div>
-                              <span className="font-semibold text-gray-900">{teacher.firstName} {teacher.lastName}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{teacher.email || '—'}</td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${teacher.role === 'ADMIN' || teacher.role === 'Admin' || teacher.role === 'admin'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-purple-100 text-purple-700'
-                              }`}>{teacher.role || 'Teacher'}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${teacher.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                              }`}>{teacher.status === 'active' ? 'Active' : 'Inactive'}</span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{teacher.createdAt ? new Date(teacher.createdAt).toLocaleDateString() : '—'}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2">
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("teacher", teacher)}>
-                                <Edit className="w-3 h-3 mr-1" />{t.edit}
-                              </Button>
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("teacher", teacher.id, teacher.firstName)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                    (() => {
+                      const filtered = data.teachers.filter(t => !searchQuery || `${t.firstName} ${t.lastName} ${t.email}`.toLowerCase().includes(searchQuery.toLowerCase()));
+                      const totalPages = Math.ceil(filtered.length / itemsPerPage);
+                      const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+                      if (filtered.length === 0) {
+                        return <tr><td colSpan={7} className="text-center py-8 text-gray-400">No teachers found.</td></tr>;
+                      }
+
+                      return (
+                        <>
+                          {paginated.map((teacher, idx) => (
+                            <tr key={teacher.id} className={`border-b border-gray-100 hover:bg-purple-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                              <td className="px-4 py-3 text-gray-400 font-mono text-xs">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                    {teacher.firstName ? teacher.firstName.charAt(0).toUpperCase() : "T"}
+                                  </div>
+                                  <span className="font-semibold text-gray-900">{teacher.firstName} {teacher.lastName}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">{teacher.email || '—'}</td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${teacher.role === 'ADMIN' || teacher.role === 'Admin' || teacher.role === 'admin'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-purple-100 text-purple-700'
+                                  }`}>{teacher.role || 'Teacher'}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${teacher.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                                  }`}>{teacher.status === 'active' ? 'Active' : 'Inactive'}</span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">{teacher.createdAt ? new Date(teacher.createdAt).toLocaleDateString() : '—'}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("teacher", teacher)}>
+                                    <Edit className="w-3 h-3 mr-1" />{t.edit}
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("teacher", teacher.id, teacher.firstName)}>
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {totalPages > 1 && (
+                            <tr>
+                              <td colSpan={7} className="p-4 bg-gray-50/30">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    className="rounded-xl h-8 px-3"
+                                  >
+                                    Previous
+                                  </Button>
+                                  <div className="flex gap-1">
+                                    {Array.from({ length: totalPages }).map((_, i) => (
+                                      <Button
+                                        key={i}
+                                        variant={currentPage === i + 1 ? "default" : "ghost"}
+                                        size="sm"
+                                        onClick={() => setCurrentPage(i + 1)}
+                                        className={`w-8 h-8 rounded-lg text-xs font-bold ${currentPage === i + 1 ? "bg-purple-600 text-white" : "text-gray-400"}`}
+                                      >
+                                        {i + 1}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    className="rounded-xl h-8 px-3"
+                                  >
+                                    Next
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })()
                   )}
                 </tbody>
               </table>
@@ -650,40 +743,89 @@ export function AdminDashboard() {
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading students...</td></tr>
-                  ) : data.students.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No students found.</td></tr>
                   ) : (
-                    data.students
-                      .filter(s => !searchQuery || `${s.firstName} ${s.lastName} ${s.email}`.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((student, idx) => (
-                        <tr key={student.id} className={`border-b border-gray-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
-                                {student.firstName ? student.firstName.charAt(0).toUpperCase() : "S"}
-                              </div>
-                              <span className="font-semibold text-gray-900">{student.firstName} {student.lastName}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{student.email || '—'}</td>
-                          <td className="px-4 py-3 text-gray-600">{student.phoneNumber || '—'}</td>
-                          <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">{student.xp ?? 0} XP</span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{student.createdAt ? new Date(student.createdAt).toLocaleDateString() : '—'}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2">
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("student", student)}>
-                                <Edit className="w-3 h-3 mr-1" />{t.edit}
-                              </Button>
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("student", student.id, student.firstName)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                    (() => {
+                      const filtered = data.students.filter(s => !searchQuery || `${s.firstName} ${s.lastName} ${s.email}`.toLowerCase().includes(searchQuery.toLowerCase()));
+                      const totalPages = Math.ceil(filtered.length / itemsPerPage);
+                      const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+                      if (filtered.length === 0) {
+                        return <tr><td colSpan={7} className="text-center py-8 text-gray-400">No students found.</td></tr>;
+                      }
+
+                      return (
+                        <>
+                          {paginated.map((student, idx) => (
+                            <tr key={student.id} className={`border-b border-gray-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                              <td className="px-4 py-3 text-gray-400 font-mono text-xs">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
+                                    {student.firstName ? student.firstName.charAt(0).toUpperCase() : "S"}
+                                  </div>
+                                  <span className="font-semibold text-gray-900">{student.firstName} {student.lastName}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">{student.email || '—'}</td>
+                              <td className="px-4 py-3 text-gray-600">{student.phoneNumber || '—'}</td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">{student.xp ?? 0} XP</span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">{student.createdAt ? new Date(student.createdAt).toLocaleDateString() : '—'}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("student", student)}>
+                                    <Edit className="w-3 h-3 mr-1" />{t.edit}
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("student", student.id, student.firstName)}>
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {totalPages > 1 && (
+                            <tr>
+                              <td colSpan={7} className="p-4 bg-gray-50/30">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    className="rounded-xl h-8 px-3"
+                                  >
+                                    Previous
+                                  </Button>
+                                  <div className="flex gap-1">
+                                    {Array.from({ length: totalPages }).map((_, i) => (
+                                      <Button
+                                        key={i}
+                                        variant={currentPage === i + 1 ? "default" : "ghost"}
+                                        size="sm"
+                                        onClick={() => setCurrentPage(i + 1)}
+                                        className={`w-8 h-8 rounded-lg text-xs font-bold ${currentPage === i + 1 ? "bg-blue-600 text-white" : "text-gray-400"}`}
+                                      >
+                                        {i + 1}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    className="rounded-xl h-8 px-3"
+                                  >
+                                    Next
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })()
                   )}
                 </tbody>
               </table>
@@ -711,36 +853,85 @@ export function AdminDashboard() {
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading classes...</td></tr>
-                  ) : data.classes.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">No classes found.</td></tr>
                   ) : (
-                    data.classes
-                      .filter(c => !searchQuery || (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((classItem, idx) => (
-                        <tr key={classItem.id} className={`border-b border-gray-100 hover:bg-orange-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
-                          <td className="px-4 py-3 font-semibold text-gray-900">{classItem.name}</td>
-                          <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">{classItem.grade || '—'}</span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{classItem.teacher || '—'}</td>
-                          <td className="px-4 py-3 text-gray-600">{classItem.schedule || '—'}</td>
-                          <td className="px-4 py-3 text-gray-600">{classItem.room || '—'}</td>
-                          <td className="px-4 py-3">
-                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">{classItem.studentCount ?? 0}</span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2">
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("class", classItem)}>
-                                <Edit className="w-3 h-3 mr-1" />{t.edit}
-                              </Button>
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("class", classItem.id, classItem.name)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                    (() => {
+                      const filtered = data.classes.filter(c => !searchQuery || (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()));
+                      const totalPages = Math.ceil(filtered.length / itemsPerPage);
+                      const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+                      if (filtered.length === 0) {
+                        return <tr><td colSpan={8} className="text-center py-8 text-gray-400">No classes found.</td></tr>;
+                      }
+
+                      return (
+                        <>
+                          {paginated.map((classItem, idx) => (
+                            <tr key={classItem.id} className={`border-b border-gray-100 hover:bg-orange-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                              <td className="px-4 py-3 text-gray-400 font-mono text-xs">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                              <td className="px-4 py-3 font-semibold text-gray-900">{classItem.name}</td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">{classItem.grade || '—'}</span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">{classItem.teacher || '—'}</td>
+                              <td className="px-4 py-3 text-gray-600">{classItem.schedule || '—'}</td>
+                              <td className="px-4 py-3 text-gray-600">{classItem.room || '—'}</td>
+                              <td className="px-4 py-3">
+                                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">{classItem.studentCount ?? 0}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" onClick={() => handleEdit("class", classItem)}>
+                                    <Edit className="w-3 h-3 mr-1" />{t.edit}
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("class", classItem.id, classItem.name)}>
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {totalPages > 1 && (
+                            <tr>
+                              <td colSpan={8} className="p-4 bg-gray-50/30">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    className="rounded-xl h-8 px-3"
+                                  >
+                                    Previous
+                                  </Button>
+                                  <div className="flex gap-1">
+                                    {Array.from({ length: totalPages }).map((_, i) => (
+                                      <Button
+                                        key={i}
+                                        variant={currentPage === i + 1 ? "default" : "ghost"}
+                                        size="sm"
+                                        onClick={() => setCurrentPage(i + 1)}
+                                        className={`w-8 h-8 rounded-lg text-xs font-bold ${currentPage === i + 1 ? "bg-orange-600 text-white" : "text-gray-400"}`}
+                                      >
+                                        {i + 1}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    className="rounded-xl h-8 px-3"
+                                  >
+                                    Next
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })()
                   )}
                 </tbody>
               </table>
@@ -769,150 +960,105 @@ export function AdminDashboard() {
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading courses...</td></tr>
-                  ) : data.courses.length === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">No courses found.</td></tr>
                   ) : (
-                    data.courses
-                      .filter(c => !searchQuery || (c.title || '').toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((course, idx) => (
-                        <tr key={course.id} className={`border-b border-gray-100 hover:bg-green-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center text-lg shrink-0 overflow-hidden">
-                                {course.image ? <img src={course.image} className="w-full h-full object-cover" alt="" /> : '📚'}
-                              </div>
-                              <span className="font-semibold text-gray-900">{course.title}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{course.category || '—'}</td>
-                          <td className="px-4 py-3">
-                            {course.level ? <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">{course.level}</span> : '—'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${(course.status || 'published') === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                              }`}>{(course.status || 'published') === 'published' ? 'Published' : 'Draft'}</span>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{course.lessonCount ?? '—'}</td>
-                          <td className="px-4 py-3 text-gray-600">{course.enrolledStudents ?? '—'}</td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{course.createdAt ? new Date(course.createdAt).toLocaleDateString() : '—'}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2">
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs text-purple-600 border-purple-200 hover:bg-purple-50" onClick={() => handleOpenManageLessons(course)}>
-                                <BookOpen className="w-3 h-3 mr-1" />Steps
-                              </Button>
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("course", course.id, course.title)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-        </TabsContent>
+                    (() => {
+                      const filtered = data.courses.filter(c => !searchQuery || (c.title || '').toLowerCase().includes(searchQuery.toLowerCase()));
+                      const totalPages = Math.ceil(filtered.length / itemsPerPage);
+                      const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-        {/* Materials Tab */}
-        <TabsContent value="materials" className="space-y-6">
-          <Card className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Select defaultValue="all">
-                <SelectTrigger className="w-full sm:w-48 rounded-xl">
-                  <SelectValue placeholder={t.materialType} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t.allTypes}</SelectItem>
-                  <SelectItem value="video">{t.video}</SelectItem>
-                  <SelectItem value="document">{t.document}</SelectItem>
-                  <SelectItem value="image">{t.image}</SelectItem>
-                  <SelectItem value="audio">{t.audio}</SelectItem>
-                  <SelectItem value="interactive">{t.interactive}</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                className="bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl"
-                onClick={() => setSelectedModal("uploadMaterial")}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {t.uploadMaterial}
-              </Button>
-            </div>
-          </Card>
+                      if (filtered.length === 0) {
+                        return <tr><td colSpan={9} className="text-center py-8 text-gray-400">No courses found.</td></tr>;
+                      }
 
-          <Card className="overflow-hidden border border-gray-100 shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gradient-to-r from-cyan-50 to-blue-50 border-b border-gray-200">
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">#</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Name</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Type</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Course</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Size</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Uploaded</th>
-                    <th className="text-center px-4 py-3 font-semibold text-gray-700">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading materials...</td></tr>
-                  ) : data.materials.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No materials found.</td></tr>
-                  ) : (
-                    data.materials
-                      .filter((m: any) => !searchQuery || (m.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((material: any, idx: number) => (
-                        <tr key={material.id} className={`border-b border-gray-100 hover:bg-cyan-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
-                          <td className="px-4 py-3 font-semibold text-gray-900 max-w-[180px] truncate">{material.name}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              {material.type === 'video' && <Video className="w-4 h-4 text-red-500 shrink-0" />}
-                              {material.type === 'document' && <FileText className="w-4 h-4 text-blue-500 shrink-0" />}
-                              {material.type === 'image' && <ImageIcon className="w-4 h-4 text-green-500 shrink-0" />}
-                              {material.type === 'audio' && <Music className="w-4 h-4 text-purple-500 shrink-0" />}
-                              {material.type === 'interactive' && <Code className="w-4 h-4 text-orange-500 shrink-0" />}
-                              {!['video', 'document', 'image', 'audio', 'interactive'].includes(material.type) && <FileText className="w-4 h-4 text-gray-400 shrink-0" />}
-                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${material.type === 'video' ? 'bg-red-100 text-red-700' :
-                                  material.type === 'document' ? 'bg-blue-100 text-blue-700' :
-                                    material.type === 'image' ? 'bg-green-100 text-green-700' :
-                                      material.type === 'audio' ? 'bg-purple-100 text-purple-700' :
-                                        'bg-orange-100 text-orange-700'
-                                }`}>{material.type || 'file'}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-gray-600">{material.course || '—'}</td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{material.size || '—'}</td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{material.uploadDate || (material.createdAt ? new Date(material.createdAt).toLocaleDateString() : '—')}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2">
-                              {material.url ? (
-                                <Link to={`/material/view?url=${encodeURIComponent(material.url)}&type=${encodeURIComponent(material.type || '')}&name=${encodeURIComponent(material.name)}`}>
-                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs text-purple-700 border-purple-200 hover:bg-purple-50">
-                                    <Eye className="w-3 h-3 mr-1" />View
+                      return (
+                        <>
+                          {paginated.map((course, idx) => (
+                            <tr key={course.id} className={`border-b border-gray-100 hover:bg-green-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                              <td className="px-4 py-3 text-gray-400 font-mono text-xs">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg flex items-center justify-center text-lg shrink-0 overflow-hidden">
+                                    {course.image ? <img src={course.image} className="w-full h-full object-cover" alt="" /> : '📚'}
+                                  </div>
+                                  <span className="font-semibold text-gray-900">{course.title}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">{course.category || '—'}</td>
+                              <td className="px-4 py-3">
+                                {course.level ? <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">{course.level}</span> : '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${(course.status || 'published') === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                  }`}>{(course.status || 'published') === 'published' ? 'Published' : 'Draft'}</span>
+                              </td>
+                              <td className="px-4 py-3 text-gray-600">{course.lessonCount ?? '—'}</td>
+                              <td className="px-4 py-3 text-gray-600">{course.enrolledStudents ?? '—'}</td>
+                              <td className="px-4 py-3 text-gray-500 text-xs">{course.createdAt ? new Date(course.createdAt).toLocaleDateString() : '—'}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs text-purple-600 border-purple-200 hover:bg-purple-50" onClick={() => handleOpenManageLessons(course)}>
+                                    <BookOpen className="w-3 h-3 mr-1" />Steps
                                   </Button>
-                                </Link>
-                              ) : (
-                                <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" disabled>
-                                  <Eye className="w-3 h-3 mr-1" />No File
-                                </Button>
-                              )}
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("material", material.id, material.name)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs text-cyan-600 border-cyan-200 hover:bg-cyan-50" onClick={() => { setSelectedCourseForLessons(course); setSelectedModal("manageCourseMaterials"); }}>
+                                    <FolderOpen className="w-3 h-3 mr-1" />Materials
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("course", course.id, course.title)}>
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {totalPages > 1 && (
+                            <tr>
+                              <td colSpan={9} className="p-4 bg-gray-50/30">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    className="rounded-xl h-8 px-3"
+                                  >
+                                    Previous
+                                  </Button>
+                                  <div className="flex gap-1">
+                                    {Array.from({ length: totalPages }).map((_, i) => (
+                                      <Button
+                                        key={i}
+                                        variant={currentPage === i + 1 ? "default" : "ghost"}
+                                        size="sm"
+                                        onClick={() => setCurrentPage(i + 1)}
+                                        className={`w-8 h-8 rounded-lg text-xs font-bold ${currentPage === i + 1 ? "bg-green-600 text-white" : "text-gray-400"}`}
+                                      >
+                                        {i + 1}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    className="rounded-xl h-8 px-3"
+                                  >
+                                    Next
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })()
                   )}
                 </tbody>
               </table>
             </div>
           </Card>
         </TabsContent>
+
+        {/* Standalone Materials tab content removed */}
       </Tabs>
 
       {/* Add Teacher Modal */}
@@ -1530,19 +1676,37 @@ export function AdminDashboard() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     {t.uploadFile}
                   </label>
-                  <div className="relative border-2 border-dashed rounded-xl p-8 text-center hover:border-purple-400 transition-colors cursor-pointer">
-                    <Input
-                      type="file"
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      onChange={(e: any) => setMaterialForm({ ...materialForm, file: e.target.files?.[0] || null })}
-                    />
-                    <Upload className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                    <p className="text-sm font-semibold text-gray-700 mb-1">
-                      {materialForm.file ? materialForm.file.name : t.clickToUpload}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {t.supportedFormats}
-                    </p>
+                  <div className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${uploadProgress !== null ? 'border-purple-400 bg-purple-50' : 'hover:border-purple-400'}`}>
+                    {uploadProgress === null ? (
+                      <>
+                        <Input
+                          type="file"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          onChange={(e: any) => setMaterialForm({ ...materialForm, file: e.target.files?.[0] || null })}
+                        />
+                        <Upload className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                        <p className="text-sm font-semibold text-gray-700 mb-1">
+                          {materialForm.file ? materialForm.file.name : t.clickToUpload}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {t.supportedFormats}
+                        </p>
+                      </>
+                    ) : (
+                      <div className="py-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-purple-700">Uploading {materialForm.file?.name}...</span>
+                          <span className="text-xs font-bold text-purple-700">{uploadProgress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-purple-500 to-pink-500 h-2.5 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          ></div>
+                        </div>
+                        <p className="text-[10px] text-purple-600 mt-2">Please stay on this page until upload completes.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1781,6 +1945,134 @@ export function AdminDashboard() {
         </div>
       )}
 
+      {/* Manage Course Materials Modal */}
+      {selectedModal === "manageCourseMaterials" && selectedCourseForLessons && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-black text-gray-900">Manage Materials</h2>
+                  <p className="text-sm text-gray-500">{selectedCourseForLessons.title}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    className="bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl"
+                    onClick={() => {
+                      setMaterialForm({ ...materialForm, courseId: selectedCourseForLessons.id.toString() });
+                      setSelectedModal("uploadMaterial");
+                    }}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload New
+                  </Button>
+                  <Button variant="outline" onClick={() => setSelectedModal(null)} className="rounded-full">
+                    {t.close}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-cyan-50 to-blue-50 border-b border-gray-200">
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">#</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Name</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Type</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Size</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-700">Uploaded</th>
+                      <th className="text-center px-4 py-3 font-semibold text-gray-700">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const courseMaterials = data.materials.filter((m: any) =>
+                        m.courseId === selectedCourseForLessons.id ||
+                        m.course === selectedCourseForLessons.title
+                      );
+
+                      if (courseMaterials.length === 0) {
+                        return <tr><td colSpan={6} className="text-center py-8 text-gray-400">No materials found for this course.</td></tr>;
+                      }
+
+                      return courseMaterials.map((material: any, idx: number) => (
+                        <tr key={material.id} className={`border-b border-gray-100 hover:bg-cyan-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="px-4 py-3 text-gray-400 font-mono text-xs">{idx + 1}</td>
+                          <td className="px-4 py-3 font-semibold text-gray-900 max-w-[200px] truncate">{material.name}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {material.type === 'video' && <Video className="w-4 h-4 text-red-500 shrink-0" />}
+                              {material.type === 'document' && <FileText className="w-4 h-4 text-blue-500 shrink-0" />}
+                              {material.type === 'image' && <ImageIcon className="w-4 h-4 text-green-500 shrink-0" />}
+                              {material.type === 'audio' && <Music className="w-4 h-4 text-purple-500 shrink-0" />}
+                              {material.type === 'interactive' && <Code className="w-4 h-4 text-orange-500 shrink-0" />}
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${material.type === 'video' ? 'bg-red-100 text-red-700' :
+                                material.type === 'document' ? 'bg-blue-100 text-blue-700' :
+                                  material.type === 'image' ? 'bg-green-100 text-green-700' :
+                                    material.type === 'audio' ? 'bg-purple-100 text-purple-700' :
+                                      'bg-orange-100 text-orange-700'
+                                }`}>{material.type || 'file'}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{material.size || '—'}</td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">{material.uploadDate || (material.createdAt ? new Date(material.createdAt).toLocaleDateString() : '—')}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              {material.url ? (
+                                <Link to={`/material/view?url=${encodeURIComponent(material.url)}&type=${encodeURIComponent(material.type || '')}&name=${encodeURIComponent(material.name)}`}>
+                                  <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs text-purple-700 border-purple-200 hover:bg-purple-50">
+                                    <Eye className="w-3 h-3 mr-1" />View
+                                  </Button>
+                                </Link>
+                              ) : (
+                                <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-xs" disabled>
+                                  <Eye className="w-3 h-3 mr-1" />No File
+                                </Button>
+                              )}
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-lg h-7 px-2 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                onClick={async () => {
+                                  setSelectedAiMaterial(material);
+                                  setIsAiModalOpen(true);
+                                  setGeneratingAi(true);
+                                  try {
+                                    const existing = await materialService.getQuestions(material.id);
+                                    if (existing && existing.length > 0) {
+                                      setAiQuestions(existing);
+                                    } else {
+                                      const generated = await materialService.generateQuestions(material.id, 5);
+                                      setAiQuestions(generated);
+                                    }
+                                  } catch (err) {
+                                    console.error("Failed to load/generate questions:", err);
+                                    setAiQuestions([]);
+                                  } finally {
+                                    setGeneratingAi(false);
+                                  }
+                                }}
+                              >
+                                <Sparkles className="w-3 h-3 mr-1" /> Exam
+                              </Button>
+
+                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete("material", material.id, material.name)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Manage Lessons Modal */}
       {selectedModal === "manageLessons" && selectedCourseForLessons && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -1972,14 +2264,55 @@ export function AdminDashboard() {
                     <div className="mt-4 pt-4 border-t border-amber-200">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-bold text-amber-900">📝 Quiz Questions ({lessonQuestions.length})</h4>
-                        <Button
-                          size="sm"
-                          className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 rounded-xl h-7"
-                          onClick={() => { setAddingQuestion(!addingQuestion); setQuestionForm({ questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: '' }); }}
-                        >
-                          <Plus className="w-3 h-3 mr-1" />
-                          Add Question
-                        </Button>
+                        <div className="flex gap-2">
+                          {lessonForm.materialId && lessonForm.materialId !== "none" && (
+                            <Button
+                              size="sm"
+                              className="bg-indigo-500 hover:bg-indigo-600 text-white text-xs px-3 rounded-xl h-7"
+                              disabled={generatingAi}
+                              onClick={async () => {
+                                setGeneratingAi(true);
+                                try {
+                                  // Call AI question generation API (defaults to 5)
+                                  const generated = await materialService.generateQuestions(parseInt(lessonForm.materialId), 5);
+
+                                  // Loop through generated questions and create them for this lesson
+                                  const newQuestions = [];
+                                  for (const gq of generated) {
+                                    const q = await lessonQuestionService.create({
+                                      lessonId: editingLesson.id,
+                                      questionText: gq.questionText || gq.QuestionText,
+                                      optionsJson: gq.optionsJson || gq.OptionsJson,
+                                      correctAnswer: gq.correctAnswer || gq.CorrectAnswer,
+                                      orderIndex: lessonQuestions.length + newQuestions.length
+                                    });
+
+                                    const opts = JSON.parse(q.optionsJson || '[]');
+                                    newQuestions.push({ ...q, optionA: opts[0] || '', optionB: opts[1] || '', optionC: opts[2] || '', optionD: opts[3] || '' });
+                                  }
+
+                                  setLessonQuestions(prev => [...prev, ...newQuestions]);
+                                } catch (err) {
+                                  console.error("Failed to generate AI questions:", err);
+                                  alert("Failed to generate AI questions. Please try again.");
+                                } finally {
+                                  setGeneratingAi(false);
+                                }
+                              }}
+                            >
+                              <Wand2 className={`w-3 h-3 mr-1 ${generatingAi ? 'animate-pulse' : ''}`} />
+                              {generatingAi ? 'Generating...' : 'Generate with AI'}
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-3 rounded-xl h-7"
+                            onClick={() => { setAddingQuestion(!addingQuestion); setQuestionForm({ questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: '' }); }}
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Add Question
+                          </Button>
+                        </div>
                       </div>
 
                       {questionsLoading && <p className="text-xs text-gray-400 text-center py-2">Loading questions...</p>}
@@ -2060,6 +2393,164 @@ export function AdminDashboard() {
           </Card>
         </div>
       )}
+
+      {/* AI Generate/Review Modal */}
+      {isAiModalOpen && selectedAiMaterial && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[60] p-4">
+          <Card className="max-w-3xl w-full max-h-[90vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col border border-indigo-100">
+            <div className="p-6 border-b border-indigo-50 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-sm">
+                  <Wand2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-gray-900">AI Exam Generation</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Generating from: <span className="font-semibold text-indigo-700">{selectedAiMaterial.name}</span></p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setIsAiModalOpen(false)} className="rounded-full shadow-sm">
+                Close
+              </Button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50">
+              {generatingAi ? (
+                <div className="py-16 flex flex-col items-center justify-center space-y-4">
+                  <div className="relative w-16 h-16">
+                    <div className="absolute inset-0 rounded-full border-t-2 border-indigo-500 animate-spin"></div>
+                    <Sparkles className="absolute inset-0 m-auto w-6 h-6 text-indigo-400 animate-pulse" />
+                  </div>
+                  <p className="text-sm font-semibold text-gray-600 animate-pulse">Analyzing material & generating exam questions...</p>
+                  <p className="text-xs text-gray-400">This usually takes a few seconds.</p>
+                </div>
+              ) : aiQuestions.length === 0 ? (
+                <div className="py-12 text-center">
+                  <AlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-gray-600">Failed to generate questions, or none exist.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {aiQuestions.map((q, idx) => {
+                    let options: string[] = [];
+                    try { options = JSON.parse(q.optionsJson); } catch (e) { options = [q.optionsJson]; }
+
+                    return (
+                      <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative group overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500"></div>
+
+                        <div className="flex justify-between items-start mb-3 pl-2">
+                          <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">Question {idx + 1}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            onClick={() => setAiQuestions(prev => prev.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+
+                        <div className="pl-2 space-y-4">
+                          <textarea
+                            className="w-full text-sm font-bold text-gray-900 border-0 border-b-2 border-transparent hover:border-indigo-100 focus:border-indigo-500 focus:ring-0 p-0 resize-none transition-colors"
+                            value={q.questionText}
+                            rows={2}
+                            onChange={(e) => {
+                              const newQs = [...aiQuestions];
+                              newQs[idx].questionText = e.target.value;
+                              setAiQuestions(newQs);
+                            }}
+                          />
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {options.map((opt, optIdx) => {
+                              const isCorrect = opt === q.correctAnswer;
+                              return (
+                                <div
+                                  key={optIdx}
+                                  className={`flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer ${isCorrect
+                                    ? 'bg-green-50 border-green-200 shadow-sm'
+                                    : 'bg-gray-50 border-gray-100 hover:border-gray-200'
+                                    }`}
+                                  onClick={() => {
+                                    const newQs = [...aiQuestions];
+                                    newQs[idx].correctAnswer = opt;
+                                    setAiQuestions(newQs);
+                                  }}
+                                >
+                                  <div className={`w-4 h-4 rounded-full border-2 flex shrink-0 items-center justify-center ${isCorrect ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                                    }`}>
+                                    {isCorrect && <Check className="w-2.5 h-2.5 text-white" />}
+                                  </div>
+                                  <input
+                                    className="text-xs font-medium bg-transparent border-none p-0 focus:ring-0 w-full text-gray-700"
+                                    value={opt}
+                                    onChange={(e) => {
+                                      const newQs = [...aiQuestions];
+                                      let newOpts = [...options];
+                                      newOpts[optIdx] = e.target.value;
+                                      newQs[idx].optionsJson = JSON.stringify(newOpts);
+                                      if (isCorrect) newQs[idx].correctAnswer = e.target.value;
+                                      setAiQuestions(newQs);
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-white flex justify-between items-center shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl border-dashed border-gray-300 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50"
+                onClick={() => {
+                  setAiQuestions(prev => [
+                    ...prev,
+                    {
+                      materialId: selectedAiMaterial.id,
+                      questionText: "New Question...",
+                      optionsJson: JSON.stringify(["Option A", "Option B", "Option C", "Option D"]),
+                      correctAnswer: "Option A",
+                      orderIndex: prev.length
+                    }
+                  ]);
+                }}
+              >
+                <Plus className="w-4 h-4 mr-1.5" /> Add Manual Question
+              </Button>
+
+              <div className="flex gap-2 text-sm">
+                <Button
+                  disabled={generatingAi || aiQuestions.length === 0}
+                  className="bg-gray-900 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all"
+                  onClick={async () => {
+                    try {
+                      await materialService.saveQuestions(selectedAiMaterial.id, aiQuestions);
+                      alert("Saved successfully!");
+                      setIsAiModalOpen(false);
+                    } catch (err) {
+                      console.error("Save failed:", err);
+                      alert("Failed to save questions.");
+                    }
+                  }}
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                  Save Exam
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
     </div>
   );
 }

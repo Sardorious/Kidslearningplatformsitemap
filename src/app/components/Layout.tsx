@@ -12,14 +12,30 @@ export function Layout() {
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const navItems = [
-    { path: "/", label: t.home, icon: Home },
-    { path: "/courses", label: t.courses, icon: BookOpen },
-    { path: "/student", label: t.myLearning, icon: User },
-    { path: "/parent", label: t.parentView, icon: Users },
-    { path: "/teacher", label: t.teacherView, icon: GraduationCap },
-    { path: "/admin", label: t.adminView, icon: Shield },
+  const role = user?.role ?? "";
+
+  // Define all nav items with optional role restrictions
+  const allNavItems = [
+    { path: "/", label: t.home, icon: Home, roles: ["STUDENT", "PARENT", "ADMIN", ""] },
+    { path: "/courses", label: t.courses, icon: BookOpen, roles: [] },
+    { path: "/student", label: t.myLearning, icon: User, roles: ["STUDENT"] },
+    { path: "/parent", label: t.parentView, icon: Users, roles: ["PARENT", "STUDENT"] },
+    { path: "/teacher", label: t.teacherView, icon: GraduationCap, roles: ["TEACHER"] },
+    { path: "/admin", label: t.adminView, icon: Shield, roles: ["ADMIN"] },
   ];
+
+  // Show public items always; show role-specific items only when role matches
+  const navItems = allNavItems.filter(
+    (item) => item.roles.length === 0 || (isAuthenticated && item.roles.includes(role))
+  );
+
+  // Human-readable role badge
+  const roleBadge: Record<string, { label: string; color: string }> = {
+    ADMIN: { label: "Admin", color: "bg-red-100 text-red-700" },
+    TEACHER: { label: "Teacher", color: "bg-blue-100 text-blue-700" },
+    STUDENT: { label: "Student", color: "bg-green-100 text-green-700" },
+    PARENT: { label: "Parent", color: "bg-amber-100 text-amber-700" },
+  };
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -53,8 +69,8 @@ export function Layout() {
                     key={item.path}
                     to={item.path}
                     className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${isActive(item.path)
-                        ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                        : "text-gray-600 hover:bg-purple-50 hover:text-purple-700"
+                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                      : "text-gray-600 hover:bg-purple-50 hover:text-purple-700"
                       }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -80,9 +96,16 @@ export function Layout() {
                     <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm">
                       {user?.name?.[0]?.toUpperCase() || "U"}
                     </div>
-                    <span className="hidden md:block text-sm font-semibold text-gray-700 max-w-[100px] truncate">
-                      {user?.name}
-                    </span>
+                    <div className="hidden md:flex flex-col">
+                      <span className="text-sm font-semibold text-gray-700 max-w-[100px] truncate">
+                        {user?.name}
+                      </span>
+                      {role && roleBadge[role] && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full w-fit ${roleBadge[role].color}`}>
+                          {roleBadge[role].label}
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={logout}
                       className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-500 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-50"
@@ -155,6 +178,11 @@ export function Layout() {
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-900 truncate">{user?.name}</p>
                   <p className="text-xs text-purple-600 font-medium">🏆 {user?.xp || 0} XP</p>
+                  {role && roleBadge[role] && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full inline-block mt-0.5 ${roleBadge[role].color}`}>
+                      {roleBadge[role].label}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -170,8 +198,8 @@ export function Layout() {
                   to={item.path}
                   onClick={closeMobileMenu}
                   className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all ${isActive(item.path)
-                      ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
-                      : "text-gray-700 hover:bg-purple-50 hover:text-purple-700"
+                    ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md"
+                    : "text-gray-700 hover:bg-purple-50 hover:text-purple-700"
                     }`}
                 >
                   <div className="flex items-center space-x-3">

@@ -29,7 +29,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setUser(profile);
                 } catch (error) {
                     console.error('Failed to load user profile', error);
-                    logout();
+                    // Silently clear invalid/expired token — let ProtectedRoute
+                    // handle redirecting protected pages. Public pages stay visible.
+                    localStorage.removeItem('token');
+                    setToken(null);
+                    setUser(null);
                 }
             }
             setIsLoading(false);
@@ -37,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         loadUser();
     }, [token]);
+
 
     const login = async (credentials: Pick<User, 'phoneNumber'> & { password?: string }) => {
         try {
@@ -67,7 +72,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
-        window.location.href = '/login'; // Or use react-router navigate
+        // Only redirect to login if we're currently on a protected page.
+        // Public routes (Home, Courses, Login, Register) should stay visible.
+        const publicPaths = ['/', '/courses', '/login', '/register'];
+        const isPublic = publicPaths.some(p =>
+            window.location.pathname === p || window.location.pathname.startsWith('/courses')
+        );
+        if (!isPublic) {
+            window.location.href = '/login';
+        }
     };
 
     return (
