@@ -55,6 +55,8 @@ export function CourseCatalog() {
   const { user } = useAuth();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [enrolling, setEnrolling] = useState<Record<number, boolean>>({});
+  const [enrolledIds, setEnrolledIds] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedAge, setSelectedAge] = useState("all");
@@ -67,8 +69,12 @@ export function CourseCatalog() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const data = await courseService.getAll();
+        const [data, enrollments] = await Promise.all([
+          courseService.getAll(),
+          user ? courseService.getMyEnrollments().catch(() => []) : Promise.resolve([]),
+        ]);
         setCourses(data || []);
+        setEnrolledIds(new Set((enrollments || []).map((e: any) => e.courseId)));
       } catch (error) {
         console.error("Failed to fetch courses:", error);
         setCourses([]);
@@ -77,7 +83,21 @@ export function CourseCatalog() {
       }
     };
     fetchCourses();
-  }, []);
+  }, [user]);
+
+  const handleEnroll = async (courseId: number) => {
+    if (!user) { alert("Please log in to enroll."); return; }
+    setEnrolling(prev => ({ ...prev, [courseId]: true }));
+    try {
+      await courseService.enroll(courseId);
+      setEnrolledIds(prev => new Set(prev).add(courseId));
+    } catch (err: any) {
+      console.error("Enrollment error:", err);
+    } finally {
+      setEnrolling(prev => ({ ...prev, [courseId]: false }));
+    }
+  };
+
 
   // Reset page when filters change
   useEffect(() => {
@@ -308,7 +328,7 @@ export function CourseCatalog() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    {course.enrolled ? (
+                    {enrolledIds.has(course.id) ? (
                       <Link to={`/lesson/${course.id}/play`}>
                         <Button size="sm" className="h-9 px-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl text-xs font-bold shadow-sm transition-all hover:shadow-md">
                           Continue →
@@ -321,12 +341,15 @@ export function CourseCatalog() {
                             {t.view}
                           </Button>
                         </Link>
-                        {user?.role !== 'TEACHER' && (
-                          <Link to={`/lesson/${course.id}/play`}>
-                            <Button size="sm" className="h-9 px-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-xs font-bold shadow-sm transition-all hover:shadow-md">
-                              Enroll →
-                            </Button>
-                          </Link>
+                        {user?.role === 'STUDENT' && (
+                          <Button
+                            size="sm"
+                            className="h-9 px-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-xl text-xs font-bold shadow-sm transition-all hover:shadow-md"
+                            onClick={() => handleEnroll(course.id)}
+                            disabled={enrolling[course.id]}
+                          >
+                            {enrolling[course.id] ? "..." : "Enroll →"}
+                          </Button>
                         )}
                       </div>
                     )}

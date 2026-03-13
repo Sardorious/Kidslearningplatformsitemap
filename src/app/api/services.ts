@@ -1,4 +1,3 @@
-import { authService } from './auth';
 import api from './axios';
 import { User, Course, Lesson, ProgressData } from '../types';
 
@@ -12,8 +11,12 @@ export const userService = {
         const response = await api.get('/progress', { params: { courseId } });
         return response.data;
     },
-    completeLesson: async (lessonData: { lessonId: number, score?: number }): Promise<ProgressData> => {
-        const response = await api.post<ProgressData>('/progress/complete-lesson', lessonData);
+    completeLesson: async (lessonData: { lessonId: number, score?: number, timeSpentSeconds?: number }): Promise<any> => {
+        const response = await api.post('/progress/complete-lesson', lessonData);
+        return response.data;
+    },
+    getCourseProgressSummary: async (courseId: number): Promise<any> => {
+        const response = await api.get(`/progress/course/${courseId}/summary`);
         return response.data;
     },
     getAllUsers: async (): Promise<User[]> => {
@@ -27,17 +30,29 @@ export const userService = {
     create: async (userData: Omit<User, 'id'> & { password?: string }): Promise<User> => {
         const response = await api.post<User>('/users', userData);
         return response.data;
-    }
+    },
+    getLeaderboard: async (): Promise<any[]> => {
+        const response = await api.get('/leaderboard');
+        return response.data;
+    },
+    getMyBadges: async (): Promise<any[]> => {
+        const response = await api.get('/users/my-badges');
+        return response.data;
+    },
+    getChildProgress: async (): Promise<any> => {
+        const response = await api.get('/users/child-progress');
+        return response.data;
+    },
 };
 
 // Courses API
 export const courseService = {
-    getAll: async (): Promise<Course[]> => {
-        const response = await api.get<Course[]>('/courses');
+    getAll: async (search?: string, category?: string): Promise<Course[]> => {
+        const response = await api.get<Course[]>('/courses', { params: { search, category } });
         return response.data;
     },
     getById: async (id: number): Promise<Course> => {
-        const response = await await api.get<Course>(`/courses/${id}`);
+        const response = await api.get<Course>(`/courses/${id}`);
         return response.data;
     },
     create: async (courseData: Omit<Course, 'id'>): Promise<Course> => {
@@ -55,7 +70,19 @@ export const courseService = {
     getTeacherCourses: async (): Promise<Course[]> => {
         const response = await api.get<Course[]>('/courses/teacher');
         return response.data;
-    }
+    },
+    enroll: async (courseId: number): Promise<any> => {
+        const response = await api.post(`/courses/${courseId}/enroll`);
+        return response.data;
+    },
+    getMyEnrollments: async (): Promise<any[]> => {
+        const response = await api.get('/users/my-enrollments');
+        return response.data;
+    },
+    getEnrolledStudents: async (courseId: number): Promise<any[]> => {
+        const response = await api.get(`/admin/courses/${courseId}/students`);
+        return response.data;
+    },
 };
 
 // Lessons API
@@ -95,7 +122,19 @@ export const classService = {
     delete: async (id: number) => {
         const response = await api.delete(`/admin/classes/${id}`);
         return response.data;
-    }
+    },
+    getStudents: async (classId: number) => {
+        const response = await api.get(`/admin/classes/${classId}/students`);
+        return response.data;
+    },
+    addStudent: async (classId: number, studentId: number) => {
+        const response = await api.post(`/admin/classes/${classId}/students`, { studentId });
+        return response.data;
+    },
+    removeStudent: async (classId: number, studentId: number) => {
+        const response = await api.delete(`/admin/classes/${classId}/students/${studentId}`);
+        return response.data;
+    },
 };
 
 // Materials API
@@ -112,7 +151,6 @@ export const materialService = {
         const response = await api.delete(`/admin/materials/${id}`);
         return response.data;
     },
-    // AI Question Generation Endpoints
     generateQuestions: async (materialId: number, count: number = 5) => {
         const response = await api.post(`/admin/materials/${materialId}/generate-questions`, { count });
         return response.data;
@@ -133,9 +171,7 @@ export const fileService = {
         const formData = new FormData();
         formData.append('file', file);
         const response = await api.post('/files/upload', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
+            headers: { 'Content-Type': 'multipart/form-data' },
             onUploadProgress: (progressEvent) => {
                 if (onProgress && progressEvent.total) {
                     const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -153,15 +189,73 @@ export const lessonQuestionService = {
         const response = await api.get(`/lesson-questions/lesson/${lessonId}`);
         return response.data;
     },
-    create: async (data: { lessonId: number; questionText: string; optionsJson: string; correctAnswer: string; orderIndex: number }) => {
+    create: async (data: { lessonId: number; questionText: string; optionsJson: string; correctAnswer: string; orderIndex: number; questionType?: string }) => {
         const response = await api.post('/admin/lesson-questions', data);
         return response.data;
     },
-    update: async (id: number, data: { questionText: string; optionsJson: string; correctAnswer: string; orderIndex: number }) => {
+    update: async (id: number, data: { questionText: string; optionsJson: string; correctAnswer: string; orderIndex: number; questionType?: string }) => {
         const response = await api.put(`/admin/lesson-questions/${id}`, data);
         return response.data;
     },
     delete: async (id: number) => {
         await api.delete(`/admin/lesson-questions/${id}`);
     }
+};
+
+// Announcements API
+export const announcementService = {
+    getMy: async (): Promise<any[]> => {
+        const response = await api.get('/notifications/my');
+        return response.data;
+    },
+    getAll: async (): Promise<any[]> => {
+        const response = await api.get('/admin/announcements');
+        return response.data;
+    },
+    create: async (data: { title: string; body: string; targetRole: string }): Promise<any> => {
+        const response = await api.post('/admin/announcements', data);
+        return response.data;
+    },
+    delete: async (id: number): Promise<void> => {
+        await api.delete(`/admin/announcements/${id}`);
+    },
+};
+
+// AI Service API
+export const aiService = {
+    tutorChat: async (message: string, subject: string, grade: string): Promise<{ reply: string; subject: string }> => {
+        const response = await api.post('/ai/tutor-chat', { message, subject, grade });
+        return response.data;
+    },
+    checkWriting: async (text: string, grade: string): Promise<{
+        grammarScore: number; vocabularyScore: number; clarityScore: number;
+        toneAnalysis: string; feedback: string; correctedText: string;
+    }> => {
+        const response = await api.post('/ai/check-writing', { text, grade });
+        return response.data;
+    },
+    checkSpeaking: async (audioFile: File): Promise<{
+        transcription: string; fluencyScore: number; grammarScore: number;
+        pronunciationScore: number; feedback: string;
+    }> => {
+        const formData = new FormData();
+        formData.append('audio', audioFile);
+        const response = await api.post('/ai/check-speaking', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    },
+    generateLessonPlan: async (topic: string, ageGroup: number, level: string): Promise<{
+        topic: string; ageGroup: number; objectives: string; warmUp: string;
+        mainActivity: string; assessment: string; homework: string; teacherNotes: string;
+    }> => {
+        const response = await api.post('/ai/lesson-plan', { topic, ageGroup, level });
+        return response.data;
+    },
+    getProgressReport: async (): Promise<{
+        summary: string; strengths: string; areasToImprove: string; recommendations: string;
+    }> => {
+        const response = await api.get('/ai/progress-report');
+        return response.data;
+    },
 };

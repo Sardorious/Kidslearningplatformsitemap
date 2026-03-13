@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Calendar, TrendingUp, Clock, AlertCircle, CheckCircle,
-  Award, BarChart3, Users, X, Send
+  Award, BarChart3, Users, X, Send, BookOpen
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -61,6 +61,7 @@ const fallbackChildren = [
 
 export function ParentDashboard() {
   const { t } = useLanguage();
+  const [childData, setChildData] = useState<any>(null);
   const [children, setChildren] = useState<any[]>(fallbackChildren);
   const [selectedChildId, setSelectedChildId] = useState(fallbackChildren[0].id);
   const [loading, setLoading] = useState(true);
@@ -72,25 +73,46 @@ export function ParentDashboard() {
   useEffect(() => {
     const fetchChildren = async () => {
       try {
-        const users = await userService.getAllUsers();
-        const students = users.filter((u: any) => u.role === 'STUDENT');
-        if (students.length > 0) {
-          // Map real students into child shape
-          const mapped = students.map((s: any, i: number) => ({
-            id: String(s.id),
-            name: s.name,
-            avatar: ["👧", "👦", "🧒", "👶"][i % 4],
-            grade: `Grade ${(i % 6) + 1}`,
-            age: 6 + (i % 7),
-            coursesEnrolled: 2,
-            completionRate: 60 + Math.round(Math.random() * 35),
-            weeklyHours: 3 + Math.round(Math.random() * 4),
-            recentScores: [70, 75, 80, 82, 85].map(s => s + Math.round(Math.random() * 10 - 5)),
-            strengths: ["Reading", "Math"].slice(0, 1 + (i % 2)),
-            needsImprovement: ["Science", "Writing"].slice(0, 1 + (i % 2)),
-          }));
+        // Try to fetch the real linked child's progress first
+        const realChildProgress = await userService.getChildProgress().catch(() => null);
+        if (realChildProgress) {
+          setChildData(realChildProgress);
+          const mapped = [{
+            id: String(realChildProgress.childId),
+            name: realChildProgress.childName,
+            avatar: "👧",
+            grade: "Enrolled Student",
+            age: 0,
+            coursesEnrolled: 0,
+            completionRate: 0,
+            weeklyHours: 0,
+            recentScores: [],
+            strengths: ["Learning"],
+            needsImprovement: [],
+          }];
           setChildren(mapped);
           setSelectedChildId(mapped[0].id);
+        } else {
+          // Fallback: load all students
+          const users = await userService.getAllUsers();
+          const students = users.filter((u: any) => u.role === 'STUDENT');
+          if (students.length > 0) {
+            const mapped = students.map((s: any, i: number) => ({
+              id: String(s.id),
+              name: s.name,
+              avatar: ["👧", "👦", "🧒", "👶"][i % 4],
+              grade: `Grade ${(i % 6) + 1}`,
+              age: 6 + (i % 7),
+              coursesEnrolled: 2,
+              completionRate: 60 + Math.round(Math.random() * 35),
+              weeklyHours: 3 + Math.round(Math.random() * 4),
+              recentScores: [70, 75, 80, 82, 85].map(sc => sc + Math.round(Math.random() * 10 - 5)),
+              strengths: ["Reading", "Math"].slice(0, 1 + (i % 2)),
+              needsImprovement: ["Science", "Writing"].slice(0, 1 + (i % 2)),
+            }));
+            setChildren(mapped);
+            setSelectedChildId(mapped[0].id);
+          }
         }
       } catch {
         // fallback already set
@@ -155,9 +177,24 @@ export function ParentDashboard() {
           </div>
           <div className="flex-1 text-center md:text-left">
             <h2 className="text-2xl font-black mb-0.5">{child.name}</h2>
-            <p className="text-white/80 mb-3 text-sm">{child.grade} · {child.age} {t.yearsOld}</p>
+            <p className="text-white/80 mb-3 text-sm">{child.grade}</p>
             <div className="flex flex-wrap gap-3 justify-center md:justify-start">
-              {[
+              {childData ? (
+                <>
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 text-center">
+                    <div className="text-xs opacity-80">XP Earned</div>
+                    <div className="text-lg font-black">{childData.xp}</div>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 text-center">
+                    <div className="text-xs opacity-80">🪙 Coins</div>
+                    <div className="text-lg font-black">{childData.coins}</div>
+                  </div>
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 text-center">
+                    <div className="text-xs opacity-80">Lessons Done</div>
+                    <div className="text-lg font-black">{childData.completedLessons}</div>
+                  </div>
+                </>
+              ) : [
                 { label: t.courses, value: child.coursesEnrolled },
                 { label: t.completionRate, value: `${child.completionRate}%` },
                 { label: t.thisWeek, value: `${child.weeklyHours}h` },
@@ -235,20 +272,39 @@ export function ParentDashboard() {
 
             <Card className="p-6 rounded-2xl border border-gray-100">
               <h3 className="text-lg font-black text-gray-900 mb-4">{t.courseProgress}</h3>
-              <div className="space-y-4">
-                {["Fun with Math", "Reading Adventures", "Music Makers"].map((course, i) => {
-                  const pct = [85, 92, 58][i];
-                  return (
-                    <div key={course}>
-                      <div className="flex items-center justify-between mb-1.5 text-sm">
-                        <span className="text-gray-700">{course}</span>
-                        <span className="font-bold text-purple-600">{pct}%</span>
+              {childData?.recentProgress?.length > 0 ? (
+                <div className="space-y-3">
+                  {childData.recentProgress.slice(0, 5).map((p: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded-xl">
+                      <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center shrink-0">
+                        <BookOpen className="w-4 h-4 text-white" />
                       </div>
-                      <Progress value={pct} className="h-2" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{p.lessonTitle}</p>
+                        <p className="text-xs text-gray-400">{p.completedAt ? new Date(p.completedAt).toLocaleDateString() : ''}</p>
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        p.score >= 90 ? 'bg-green-100 text-green-700' : p.score >= 60 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                      }`}>{p.score ?? '--'}%</span>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {["Fun with Math", "Reading Adventures", "Music Makers"].map((course, i) => {
+                    const pct = [85, 92, 58][i];
+                    return (
+                      <div key={course}>
+                        <div className="flex items-center justify-between mb-1.5 text-sm">
+                          <span className="text-gray-700">{course}</span>
+                          <span className="font-bold text-purple-600">{pct}%</span>
+                        </div>
+                        <Progress value={pct} className="h-2" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           </div>
         </TabsContent>

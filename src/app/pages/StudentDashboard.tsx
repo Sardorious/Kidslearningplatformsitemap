@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import { Trophy, Flame, Star, TrendingUp, BookOpen, Clock, Target, Award } from "lucide-react";
+import { Trophy, Flame, Star, TrendingUp, BookOpen, Clock, Target, Award, Coins } from "lucide-react";
 import { studentProgress } from "../data/mockData";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -34,19 +34,25 @@ export function StudentDashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [progress, setProgress] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [badges, setBadges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [profData, progData, coursesData] = await Promise.all([
+        const [profData, progData, coursesData, leaderboardData, badgesData] = await Promise.all([
           userService.getProfile(),
           userService.getProgress(),
-          courseService.getAll()
+          courseService.getAll(),
+          userService.getLeaderboard().catch(() => []),
+          userService.getMyBadges().catch(() => []),
         ]);
         setProfile(profData);
         setProgress(progData || []);
         setCourses(coursesData ? coursesData.slice(0, 3) : []);
+        setLeaderboard(leaderboardData || []);
+        setBadges(badgesData || []);
       } catch (error) {
         console.error("Failed to load student dashboard data:", error);
       } finally {
@@ -215,26 +221,43 @@ export function StudentDashboard() {
           <div>
             <h2 className="text-xl font-black text-gray-900 mb-3">{t.achievements}</h2>
             <Card className="p-4 rounded-2xl border border-gray-100">
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 1, title: "Math Whiz", icon: "🏆", condition: completedLessonsCount >= 5 },
-                  { id: 2, title: "Reading Star", icon: "⭐", condition: profile?.xp >= 50 },
-                  { id: 3, title: "Perfect Week", icon: "🎯", condition: profile?.xp >= 100 },
-                  { id: 4, title: "Music Master", icon: "🎵", condition: profile?.xp >= 200 },
-                  { id: 5, title: "Science Genius", icon: "🔬", condition: completedLessonsCount >= 10 },
-                  { id: 6, title: "Art Creator", icon: "🎨", condition: completedLessonsCount >= 1 },
-                ].map((achievement: any) => (
-                  <div
-                    key={achievement.id}
-                    className={`aspect-square rounded-xl flex flex-col items-center justify-center p-2 transition-all ${achievement.condition ? "bg-gradient-to-br from-amber-100 to-yellow-200 border-2 border-amber-300 shadow-sm" : "bg-gray-100 opacity-40"}`}
-                  >
-                    <div className="text-2xl mb-0.5">{achievement.icon}</div>
-                    <div className="text-xs text-center font-semibold text-gray-900 leading-tight">{achievement.title}</div>
-                  </div>
-                ))}
-              </div>
+              {badges.length === 0 ? (
+                <p className="text-center text-gray-400 text-sm py-4">Complete lessons to earn badges! 🏅</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {badges.map((badge: any, i: number) => {
+                    const icons: Record<string, string> = {
+                      FirstLesson: "🎓", QuizMaster: "🏆", CourseChampion: "🌟", SevenDayStreak: "🔥"
+                    };
+                    return (
+                      <div key={i} className="aspect-square rounded-xl flex flex-col items-center justify-center p-2 bg-gradient-to-br from-amber-100 to-yellow-200 border-2 border-amber-300 shadow-sm">
+                        <div className="text-2xl mb-0.5">{icons[badge.badgeType] || "🎖️"}</div>
+                        <div className="text-xs text-center font-semibold text-gray-900 leading-tight">{badge.badgeType?.replace(/([A-Z])/g, ' $1').trim()}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           </div>
+
+          {/* Leaderboard */}
+          {leaderboard.length > 0 && (
+            <div>
+              <h2 className="text-xl font-black text-gray-900 mb-3">🏆 Leaderboard</h2>
+              <Card className="p-4 rounded-2xl border border-gray-100 space-y-2">
+                {leaderboard.slice(0, 5).map((entry: any, i: number) => (
+                  <div key={entry.id} className={`flex items-center gap-3 p-2 rounded-xl ${i === 0 ? 'bg-amber-50 border border-amber-100' : 'hover:bg-gray-50'} transition-colors`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-black ${
+                      i === 0 ? 'bg-amber-400 text-white' : i === 1 ? 'bg-gray-300 text-gray-700' : i === 2 ? 'bg-orange-300 text-white' : 'bg-gray-100 text-gray-500'
+                    }`}>{i + 1}</div>
+                    <span className="flex-1 text-sm font-semibold text-gray-900 truncate">{entry.name}</span>
+                    <span className="text-xs font-bold text-purple-600">{entry.xp} XP</span>
+                  </div>
+                ))}
+              </Card>
+            </div>
+          )}
 
           {/* Daily Goal */}
           <Card className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl">

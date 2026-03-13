@@ -39,7 +39,7 @@ import {
 } from "../components/ui/select";
 import { useLanguage } from "../contexts/LanguageContext";
 import { useEffect } from "react";
-import { userService, courseService, lessonService, fileService, classService, materialService, lessonQuestionService } from "../api/services";
+import { userService, courseService, lessonService, fileService, classService, materialService, lessonQuestionService, announcementService } from "../api/services";
 
 export function AdminDashboard() {
   const { t } = useLanguage();
@@ -82,6 +82,11 @@ export function AdminDashboard() {
   const [generatingAi, setGeneratingAi] = useState(false);
   const [selectedAiMaterial, setSelectedAiMaterial] = useState<any>(null);
   const [aiQuestions, setAiQuestions] = useState<any[]>([]);
+  // Announcements State
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcementForm, setAnnouncementForm] = useState({ title: '', body: '', targetRole: 'ALL' });
+  const [showCreateAnnouncement, setShowCreateAnnouncement] = useState(false);
+  const [savingAnnouncement, setSavingAnnouncement] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -110,6 +115,10 @@ export function AdminDashboard() {
           materials: materialsData,
           classes: classesData
         });
+
+        // Fetch announcements
+        const announcementsData = await announcementService.getAll().catch(() => []);
+        setAnnouncements(announcementsData || []);
       } catch (err) {
         console.error("Failed to load admin data", err);
       } finally {
@@ -601,6 +610,9 @@ export function AdminDashboard() {
             <Button size="sm" className="bg-gradient-to-r from-orange-400 to-amber-500 rounded-xl text-xs" onClick={() => setSelectedModal("addClass")}>
               <Plus className="w-3.5 h-3.5 mr-1" /> Class
             </Button>
+            <Button size="sm" className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-xl text-xs" onClick={() => { setActiveTab("announcements"); setShowCreateAnnouncement(true); }}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Announcement
+            </Button>
           </div>
         </div>
       </Card>
@@ -1055,6 +1067,134 @@ export function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </Card>
+        </TabsContent>
+
+        {/* Announcements Tab */}
+        <TabsContent value="announcements" className="mt-0 space-y-4">
+          <Card className="p-6 rounded-2xl border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-black text-gray-900">📣 Announcements</h2>
+                <p className="text-sm text-gray-500">Broadcast announcements to students, teachers, or everyone.</p>
+              </div>
+              <Button
+                className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-xl text-sm"
+                onClick={() => setShowCreateAnnouncement(true)}
+              >
+                <Plus className="w-4 h-4 mr-1.5" /> New Announcement
+              </Button>
+            </div>
+
+            {/* Create Announcement Form */}
+            {showCreateAnnouncement && (
+              <div className="mb-6 p-5 bg-teal-50 rounded-2xl border border-teal-100 space-y-4">
+                <h3 className="font-black text-gray-900">Create New Announcement</h3>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Title</label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. School Holiday Notice"
+                    className="rounded-xl"
+                    value={announcementForm.title}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Message</label>
+                  <textarea
+                    className="w-full border-2 border-gray-100 bg-white rounded-xl p-3 min-h-[80px] text-sm focus:outline-none focus:border-teal-400 transition-all resize-none"
+                    placeholder="Write your announcement..."
+                    value={announcementForm.body}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, body: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Target Audience</label>
+                  <Select value={announcementForm.targetRole} onValueChange={(val) => setAnnouncementForm({ ...announcementForm, targetRole: val })}>
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Everyone</SelectItem>
+                      <SelectItem value="STUDENT">Students Only</SelectItem>
+                      <SelectItem value="TEACHER">Teachers Only</SelectItem>
+                      <SelectItem value="PARENT">Parents Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-xl"
+                    disabled={savingAnnouncement || !announcementForm.title.trim()}
+                    onClick={async () => {
+                      setSavingAnnouncement(true);
+                      try {
+                        const created = await announcementService.create(announcementForm);
+                        setAnnouncements(prev => [created, ...prev]);
+                        setAnnouncementForm({ title: '', body: '', targetRole: 'ALL' });
+                        setShowCreateAnnouncement(false);
+                      } catch (err) {
+                        console.error('Failed to create announcement:', err);
+                        alert('Failed to create announcement.');
+                      } finally {
+                        setSavingAnnouncement(false);
+                      }
+                    }}
+                  >
+                    {savingAnnouncement ? 'Sending...' : 'Send Announcement'}
+                  </Button>
+                  <Button variant="outline" className="rounded-xl" onClick={() => setShowCreateAnnouncement(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Announcements List */}
+            {announcements.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <div className="text-4xl mb-3">📭</div>
+                <p className="font-semibold">No announcements yet.</p>
+                <p className="text-sm">Click "New Announcement" to send one.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {announcements.map((ann: any) => (
+                  <div key={ann.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-teal-100 transition-colors group">
+                    <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full flex items-center justify-center text-white text-lg shrink-0">
+                      📣
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="font-black text-gray-900">{ann.title}</p>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                          ann.targetRole === 'ALL' ? 'bg-purple-100 text-purple-700' :
+                          ann.targetRole === 'STUDENT' ? 'bg-blue-100 text-blue-700' :
+                          ann.targetRole === 'TEACHER' ? 'bg-green-100 text-green-700' :
+                          'bg-orange-100 text-orange-700'
+                        }`}>{ann.targetRole}</span>
+                      </div>
+                      <p className="text-sm text-gray-600">{ann.body}</p>
+                      <p className="text-[10px] text-gray-400 mt-1">{ann.createdAt ? new Date(ann.createdAt).toLocaleString() : ''}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-lg h-7 px-2 text-red-500 border-red-100 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      onClick={async () => {
+                        try {
+                          await announcementService.delete(ann.id);
+                          setAnnouncements(prev => prev.filter(a => a.id !== ann.id));
+                        } catch (e) { console.error(e); }
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </TabsContent>
 
