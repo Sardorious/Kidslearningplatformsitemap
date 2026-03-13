@@ -12,6 +12,7 @@ import { MaterialViewer } from "./pages/MaterialViewer";
 import { NotFound } from "./pages/NotFound";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
+import { AiTutor } from "./pages/AiTutor";
 
 export const router = createBrowserRouter([
   {
@@ -38,6 +39,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <MaterialViewer />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "ai-tutor",
+        element: (
+          <ProtectedRoute allowedRoles={["STUDENT", "PARENT"]}>
+            <AiTutor />
           </ProtectedRoute>
         ),
       },

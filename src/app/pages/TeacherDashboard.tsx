@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useLanguage } from "../contexts/LanguageContext";
-import { userService, courseService, materialService, lessonService, fileService } from "../api/services";
+import { userService, courseService, materialService, lessonService, fileService, aiService } from "../api/services";
 import { Course, User } from "../types";
 
 function TeacherSkeleton() {
@@ -58,6 +58,15 @@ export function TeacherDashboard() {
   const [assignments, setAssignments] = useState<any[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
   const [activeTab, setActiveTab] = useState("courses");
+
+  // AI Tools State
+  const [aiLoading, setAiLoading] = useState(false);
+  const [writingText, setWritingText] = useState("");
+  const [writingResult, setWritingResult] = useState<any>(null);
+  const [speakingFile, setSpeakingFile] = useState<File | null>(null);
+  const [speakingResult, setSpeakingResult] = useState<any>(null);
+  const [lessonTopic, setLessonTopic] = useState("");
+  const [lessonPlanResult, setLessonPlanResult] = useState<any>(null);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [isMaterialsModalOpen, setIsMaterialsModalOpen] = useState(false);
@@ -181,6 +190,49 @@ export function TeacherDashboard() {
     showSuccess(`✅ Message sent to ${activeStudent?.name}!`);
   };
 
+  // AI Tool Handlers
+  const handleCheckWriting = async () => {
+    if (!writingText.trim()) return;
+    setAiLoading(true);
+    setWritingResult(null);
+    try {
+      const res = await aiService.checkWriting(writingText, "Grade 4");
+      setWritingResult(res);
+    } catch {
+      alert("AI Writing Check failed. Try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleCheckSpeaking = async () => {
+    if (!speakingFile) return;
+    setAiLoading(true);
+    setSpeakingResult(null);
+    try {
+      const res = await aiService.checkSpeaking(speakingFile);
+      setSpeakingResult(res);
+    } catch {
+      alert("AI Speaking Evaluation failed. Try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleGenerateLessonPlan = async () => {
+    if (!lessonTopic.trim()) return;
+    setAiLoading(true);
+    setLessonPlanResult(null);
+    try {
+      const res = await aiService.generateLessonPlan(lessonTopic, 10, "Intermediate");
+      setLessonPlanResult(res);
+    } catch {
+      alert("AI Lesson Plan generation failed. Try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const typeColors: Record<string, string> = {
     writing: "bg-blue-100 text-blue-600",
     speaking: "bg-purple-100 text-purple-600",
@@ -249,6 +301,7 @@ export function TeacherDashboard() {
           <TabsTrigger value="assignments" className="rounded-lg">{t.assignments}</TabsTrigger>
           <TabsTrigger value="students" className="rounded-lg">{t.students}</TabsTrigger>
           <TabsTrigger value="analytics" className="rounded-lg">{t.analytics}</TabsTrigger>
+          <TabsTrigger value="ai-tools" className="rounded-lg">✨ AI Tools</TabsTrigger>
         </TabsList>
 
         {/* Courses Tab */}
@@ -536,6 +589,206 @@ export function TeacherDashboard() {
                   </div>
                 ))}
               </div>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* AI Tools Tab */}
+        <TabsContent value="ai-tools" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Writing Checker */}
+            <Card className="p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+                  <PenTool className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">AI Writing Checker</h3>
+                  <p className="text-sm text-gray-500">Analyze grammar, tone, and vocabulary</p>
+                </div>
+              </div>
+
+              <textarea
+                value={writingText}
+                onChange={e => setWritingText(e.target.value)}
+                placeholder="Paste student writing here..."
+                className="w-full h-40 border-2 border-gray-100 bg-gray-50 rounded-2xl p-4 text-sm focus:outline-none focus:border-blue-400 focus:bg-white transition-all resize-none mb-4"
+              />
+
+              <Button
+                onClick={handleCheckWriting}
+                disabled={aiLoading || !writingText.trim()}
+                className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl font-bold py-6"
+              >
+                {aiLoading ? "Analyzing..." : "Check Writing with AI"}
+              </Button>
+
+              {writingResult && (
+                <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-blue-50 p-2 rounded-xl text-center">
+                      <div className="text-xl font-black text-blue-700">{writingResult.grammarScore}%</div>
+                      <div className="text-[10px] text-blue-600 font-bold uppercase">Grammar</div>
+                    </div>
+                    <div className="bg-purple-50 p-2 rounded-xl text-center">
+                      <div className="text-xl font-black text-purple-700">{writingResult.vocabularyScore}%</div>
+                      <div className="text-[10px] text-purple-600 font-bold uppercase">Vocab</div>
+                    </div>
+                    <div className="bg-pink-50 p-2 rounded-xl text-center">
+                      <div className="text-xl font-black text-pink-700">{writingResult.clarityScore}%</div>
+                      <div className="text-[10px] text-pink-600 font-bold uppercase">Clarity</div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">AI Feedback</p>
+                    <p className="text-sm text-gray-700 leading-relaxed italic">"{writingResult.feedback}"</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                    <p className="text-xs font-bold text-green-700 uppercase tracking-wider mb-2 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Corrected Version
+                    </p>
+                    <p className="text-sm text-gray-800 leading-relaxed font-medium">{writingResult.correctedText}</p>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Speaking Evaluation */}
+            <Card className="p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-purple-100 rounded-2xl flex items-center justify-center">
+                  <Mic className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">AI Speaking Evaluation</h3>
+                  <p className="text-sm text-gray-500">Upload audio to check pronunciation</p>
+                </div>
+              </div>
+
+              <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center bg-gray-50/50 hover:bg-gray-100/50 transition-colors mb-4 relative overflow-hidden group">
+                <Input
+                  type="file"
+                  accept="audio/*"
+                  onChange={e => setSpeakingFile(e.target.files?.[0] || null)}
+                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                />
+                <div className="flex flex-col items-center">
+                  <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                    {speakingFile ? <FileText className="w-6 h-6 text-purple-600" /> : <Mic className="w-6 h-6 text-gray-400" />}
+                  </div>
+                  <p className="font-bold text-gray-600 mb-1">{speakingFile ? speakingFile.name : "Select Audio File"}</p>
+                  <p className="text-xs text-gray-400">MP3, WAV, or Ogg files supported</p>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleCheckSpeaking}
+                disabled={aiLoading || !speakingFile}
+                className="w-full bg-purple-600 hover:bg-purple-700 rounded-xl font-bold py-6"
+              >
+                {aiLoading ? "Processing Audio..." : "Evaluate Speaking"}
+              </Button>
+
+              {speakingResult && (
+                <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                  <div className="bg-gray-900 text-white p-4 rounded-2xl shadow-lg border border-gray-800">
+                    <p className="text-[10px] font-bold text-gray-500 uppercase mb-2">Transcription</p>
+                    <p className="text-sm font-medium leading-relaxed">"{speakingResult.transcription}"</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-indigo-50 p-3 rounded-xl text-center">
+                      <div className="text-xl font-black text-indigo-700">{speakingResult.fluencyScore}%</div>
+                      <div className="text-[10px] text-indigo-600 font-bold uppercase">Fluency</div>
+                    </div>
+                    <div className="bg-orange-50 p-3 rounded-xl text-center">
+                      <div className="text-xl font-black text-orange-700">{speakingResult.pronunciationScore}%</div>
+                      <div className="text-[10px] text-orange-600 font-bold uppercase">Pronunciation</div>
+                    </div>
+                    <div className="bg-blue-50 p-3 rounded-xl text-center">
+                      <div className="text-xl font-black text-blue-700">{speakingResult.grammarScore}%</div>
+                      <div className="text-[10px] text-blue-600 font-bold uppercase">Grammar</div>
+                    </div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                    <p className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-2">Coach's Advice</p>
+                    <p className="text-sm text-gray-800 leading-relaxed font-medium">{speakingResult.feedback}</p>
+                  </div>
+                </div>
+              )}
+            </Card>
+
+            {/* Lesson Plan Generator */}
+            <Card className="p-6 rounded-3xl border border-gray-100 shadow-sm lg:col-span-2 bg-gradient-to-br from-white to-orange-50/30">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center">
+                  <Wand2 className="w-6 h-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">AI Lesson Plan Generator</h3>
+                  <p className="text-sm text-gray-500">Create structured lesson plans in seconds</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <Input
+                  value={lessonTopic}
+                  onChange={e => setLessonTopic(e.target.value)}
+                  placeholder="Enter topic (e.g., 'Introduction to Ancient Rome', 'The Water Cycle')"
+                  className="flex-1 rounded-2xl py-6 border-2 border-gray-100 focus:border-orange-400"
+                />
+                <Button
+                  onClick={handleGenerateLessonPlan}
+                  disabled={aiLoading || !lessonTopic.trim()}
+                  className="bg-orange-600 hover:bg-orange-700 px-8 rounded-2xl font-black shadow-lg shadow-orange-200"
+                >
+                  {aiLoading ? "Generating..." : "Magic Generate"}
+                </Button>
+              </div>
+
+              {lessonPlanResult && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-700 mt-8">
+                  <div className="md:col-span-2 space-y-6">
+                    <div className="space-y-2">
+                      <h4 className="flex items-center gap-2 text-sm font-black text-gray-900 uppercase tracking-tight">
+                        <Sparkles className="w-4 h-4 text-orange-500" /> Objectives
+                      </h4>
+                      <p className="text-sm text-gray-600 bg-white p-4 rounded-2xl border border-gray-100 whitespace-pre-wrap">{lessonPlanResult.objectives}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="flex items-center gap-2 text-sm font-black text-gray-900 uppercase tracking-tight">
+                        <TrendingUp className="w-4 h-4 text-orange-500" /> Warm Up
+                      </h4>
+                      <p className="text-sm text-gray-600 bg-white p-4 rounded-2xl border border-gray-100 whitespace-pre-wrap">{lessonPlanResult.warmUp}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="flex items-center gap-2 text-sm font-black text-gray-900 uppercase tracking-tight">
+                        <BookOpen className="w-4 h-4 text-orange-500" /> Main Activity
+                      </h4>
+                      <div className="text-sm text-gray-700 bg-orange-50/50 p-5 rounded-3xl border border-orange-100 leading-relaxed whitespace-pre-wrap">
+                        {lessonPlanResult.mainActivity}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="bg-white p-5 rounded-3xl border border-gray-100 space-y-4">
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Assessment</h4>
+                        <p className="text-sm text-gray-700">{lessonPlanResult.assessment}</p>
+                      </div>
+                      <div className="space-y-2 pt-4 border-t border-gray-50">
+                        <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Homework</h4>
+                        <p className="text-sm text-gray-700">{lessonPlanResult.homework}</p>
+                      </div>
+                    </div>
+                    <div className="bg-gray-900 text-white p-5 rounded-3xl space-y-2 shadow-xl">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <FileText className="w-3 h-3 text-orange-500" /> Teacher Notes
+                      </h4>
+                      <p className="text-xs text-gray-300 leading-relaxed font-medium">{lessonPlanResult.teacherNotes}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </Card>
           </div>
         </TabsContent>

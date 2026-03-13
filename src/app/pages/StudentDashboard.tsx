@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import { Trophy, Flame, Star, TrendingUp, BookOpen, Clock, Target, Award, Coins } from "lucide-react";
+import { Trophy, Flame, Star, TrendingUp, BookOpen, Clock, Target, Award, Coins, Sparkles, MessageSquare, Globe } from "lucide-react";
 import { studentProgress } from "../data/mockData";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -181,6 +181,27 @@ export function StudentDashboard() {
             )}
           </div>
 
+          {/* AI Language Mode Card */}
+          <Card className="p-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-3xl overflow-hidden relative group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
+              <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-4xl shadow-xl border border-white/30">
+                🌍
+              </div>
+              <div className="flex-1 text-center md:text-left">
+                <h2 className="text-2xl font-black mb-2">Language Learning Mode</h2>
+                <p className="text-blue-100 text-sm mb-4 leading-relaxed">
+                  Practice English, Arabic, or Spanish with our native-level AI tutor and get instant grammar coaching!
+                </p>
+                <Link to="/ai-tutor">
+                  <Button className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-xl px-8">
+                    Start Learning
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+
           {/* Recent Activity */}
           <div>
             <h2 className="text-xl font-black text-gray-900 mb-4">{t.recentActivity}</h2>
@@ -217,6 +238,34 @@ export function StudentDashboard() {
 
         {/* Sidebar */}
         <div className="space-y-5">
+          {/* AI Tutor Card */}
+          <Card className="p-5 bg-gradient-to-br from-purple-600 to-pink-500 text-white rounded-3xl shadow-xl shadow-purple-200 border-none relative overflow-hidden group">
+            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl border border-white/30 shadow-inner">
+                  🤖
+                </div>
+                <div>
+                  <h3 className="font-black text-lg leading-tight">Zappy Chat</h3>
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-[10px] uppercase font-black tracking-widest text-purple-100">Online</span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-purple-50 leading-relaxed mb-4 font-medium">
+                "Hi! I'm Zappy! Need help with your homework or want to learn something cool?"
+              </p>
+              <Link to="/ai-tutor">
+                <Button className="w-full bg-white text-purple-600 hover:bg-purple-50 font-black rounded-xl shadow-lg border-none py-6">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Chat with Zappy
+                </Button>
+              </Link>
+            </div>
+          </Card>
+
           {/* Achievements */}
           <div>
             <h2 className="text-xl font-black text-gray-900 mb-3">{t.achievements}</h2>

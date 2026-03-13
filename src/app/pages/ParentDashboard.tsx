@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Calendar, TrendingUp, Clock, AlertCircle, CheckCircle,
-  Award, BarChart3, Users, X, Send, BookOpen
+  Award, BarChart3, Users, X, Send, BookOpen, Sparkles, FileText, Brain
 } from "lucide-react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -9,7 +9,7 @@ import { Progress } from "../components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useLanguage } from "../contexts/LanguageContext";
-import { userService } from "../api/services";
+import { userService, aiService } from "../api/services";
 
 function ParentSkeleton() {
   return (
@@ -69,6 +69,10 @@ export function ParentDashboard() {
   const [contactMsg, setContactMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+
+  // AI Report State
+  const [aiReportLoading, setAiReportLoading] = useState(false);
+  const [aiReport, setAiReport] = useState<any>(null);
 
   useEffect(() => {
     const fetchChildren = async () => {
@@ -137,6 +141,20 @@ export function ParentDashboard() {
     setSubmitting(false);
     setSuccessMsg("✅ Message sent to the teacher!");
     setTimeout(() => { setShowContactModal(false); setSuccessMsg(""); setContactMsg(""); }, 1500);
+  };
+
+  const handleGenerateAiReport = async () => {
+    setAiReportLoading(true);
+    setAiReport(null);
+    try {
+      // In a real app, child.id would be used to fetch actual DB data
+      const report = await aiService.getProgressReport();
+      setAiReport(report);
+    } catch {
+      alert("AI Report generation failed. Try again.");
+    } finally {
+      setAiReportLoading(false);
+    }
   };
 
   return (
@@ -220,6 +238,79 @@ export function ParentDashboard() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
+          {/* AI Magic Report Section */}
+          <Card className="p-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-3xl overflow-hidden shadow-xl shadow-purple-100">
+            <div className="bg-white m-0.5 rounded-[calc(1.5rem-2px)] p-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-purple-100 rounded-2xl flex items-center justify-center shadow-inner">
+                    <Sparkles className="w-7 h-7 text-purple-600 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900">AI Magic Progress Report</h3>
+                    <p className="text-sm text-gray-500">Get deep insights into {child.name}'s learning journey</p>
+                  </div>
+                </div>
+                {!aiReport && (
+                  <Button
+                    onClick={handleGenerateAiReport}
+                    disabled={aiReportLoading}
+                    className="bg-gray-900 hover:bg-black text-white px-8 py-6 rounded-2xl font-black transition-all hover:scale-105"
+                  >
+                    {aiReportLoading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-5 h-5 mr-2" />
+                        Generate Now
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+
+              {aiReport && (
+                <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-top-8 duration-700">
+                  <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-100 relative">
+                    <div className="absolute top-4 right-4 text-xs font-black text-indigo-300 uppercase tracking-widest">AI Summary</div>
+                    <p className="text-gray-700 leading-relaxed font-medium">"{aiReport.summary}"</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-green-50 p-5 rounded-2xl border border-green-100">
+                      <h4 className="flex items-center gap-2 text-xs font-black text-green-700 uppercase tracking-widest mb-3">
+                        <CheckCircle className="w-4 h-4" /> Bright Spots
+                      </h4>
+                      <p className="text-sm text-gray-600 leading-relaxed">{aiReport.strengths}</p>
+                    </div>
+                    <div className="bg-orange-50 p-5 rounded-2xl border border-orange-100">
+                      <h4 className="flex items-center gap-2 text-xs font-black text-orange-700 uppercase tracking-widest mb-3">
+                        <AlertCircle className="w-4 h-4" /> Focus Areas
+                      </h4>
+                      <p className="text-sm text-gray-600 leading-relaxed">{aiReport.areasToImprove}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-900 text-white p-6 rounded-3xl relative overflow-hidden group">
+                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl group-hover:bg-purple-500/30 transition-colors" />
+                    <h4 className="flex items-center gap-2 text-xs font-black text-purple-400 uppercase tracking-widest mb-4">
+                      <TrendingUp className="w-4 h-4" /> Next Steps & Recommendations
+                    </h4>
+                    <p className="text-sm text-gray-200 leading-relaxed relative z-10">{aiReport.recommendations}</p>
+                    <div className="mt-4 flex justify-end">
+                      <Button variant="ghost" className="text-xs text-purple-300 hover:text-white hover:bg-white/10" onClick={() => setAiReport(null)}>
+                        Regenerate Report
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { icon: Clock, label: t.thisWeek, value: `${child.weeklyHours}h`, color: "blue" },
