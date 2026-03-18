@@ -191,7 +191,7 @@ export function StudentDashboard() {
               <div className="flex-1 text-center md:text-left">
                 <h2 className="text-2xl font-black mb-2">Language Learning Mode</h2>
                 <p className="text-blue-100 text-sm mb-4 leading-relaxed">
-                  Practice English, Arabic, or Spanish with our native-level AI tutor and get instant grammar coaching!
+                  Practice English, Arabic, Spanish, Turkish, or Russian with our native-level AI tutor and get instant grammar coaching!
                 </p>
                 <Link to="/ai-tutor">
                   <Button className="bg-white text-blue-600 hover:bg-blue-50 font-black rounded-xl px-8">

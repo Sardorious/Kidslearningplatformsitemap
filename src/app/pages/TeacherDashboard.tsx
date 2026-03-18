@@ -62,6 +62,7 @@ export function TeacherDashboard() {
   // AI Tools State
   const [aiLoading, setAiLoading] = useState(false);
   const [writingText, setWritingText] = useState("");
+  const [writingImage, setWritingImage] = useState<File | null>(null);
   const [writingResult, setWritingResult] = useState<any>(null);
   const [speakingFile, setSpeakingFile] = useState<File | null>(null);
   const [speakingResult, setSpeakingResult] = useState<any>(null);
@@ -192,11 +193,11 @@ export function TeacherDashboard() {
 
   // AI Tool Handlers
   const handleCheckWriting = async () => {
-    if (!writingText.trim()) return;
+    if (!writingText.trim() && !writingImage) return;
     setAiLoading(true);
     setWritingResult(null);
     try {
-      const res = await aiService.checkWriting(writingText, "Grade 4");
+      const res = await aiService.checkWriting(writingText, "Grade 4", writingImage || undefined);
       setWritingResult(res);
     } catch {
       alert("AI Writing Check failed. Try again.");
@@ -608,16 +609,32 @@ export function TeacherDashboard() {
                 </div>
               </div>
 
-              <textarea
-                value={writingText}
-                onChange={e => setWritingText(e.target.value)}
-                placeholder="Paste student writing here..."
-                className="w-full h-40 border-2 border-gray-100 bg-gray-50 rounded-2xl p-4 text-sm focus:outline-none focus:border-blue-400 focus:bg-white transition-all resize-none mb-4"
-              />
+              <div className="flex gap-2 mb-4 h-40">
+                <textarea
+                  value={writingText}
+                  onChange={e => setWritingText(e.target.value)}
+                  placeholder="Paste student writing here..."
+                  className="flex-1 border-2 border-gray-100 bg-gray-50 rounded-2xl p-4 text-sm focus:outline-none focus:border-blue-400 focus:bg-white transition-all resize-none"
+                />
+                
+                {/* Image Upload Area for handwriting */}
+                <div className="w-40 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors relative overflow-hidden group flex flex-col items-center justify-center p-2 text-center">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => setWritingImage(e.target.files?.[0] || null)}
+                    className="absolute inset-0 opacity-0 cursor-pointer z-10 h-full"
+                  />
+                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm mb-2 group-hover:scale-110 transition-transform">
+                    {writingImage ? <FileText className="w-5 h-5 text-blue-600" /> : <PenTool className="w-5 h-5 text-gray-400" />}
+                  </div>
+                  <p className="font-bold text-gray-600 text-xs line-clamp-2">{writingImage ? writingImage.name : "Upload Handwriting Photo"}</p>
+                </div>
+              </div>
 
               <Button
                 onClick={handleCheckWriting}
-                disabled={aiLoading || !writingText.trim()}
+                disabled={aiLoading || (!writingText.trim() && !writingImage)}
                 className="w-full bg-blue-600 hover:bg-blue-700 rounded-xl font-bold py-6"
               >
                 {aiLoading ? "Analyzing..." : "Check Writing with AI"}

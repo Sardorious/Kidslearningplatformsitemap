@@ -223,15 +223,62 @@ export const announcementService = {
 
 // AI Service API
 export const aiService = {
-    tutorChat: async (message: string, subject: string, grade: string): Promise<{ reply: string; subject: string }> => {
-        const response = await api.post('/ai/tutor-chat', { message, subject, grade });
-        return response.data;
+    tutorChatStream: async (message: string, subject: string, grade: string, onUpdate: (text: string) => void): Promise<string> => {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:5247/ai/tutor-chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ message, subject, grade })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullReply = "";
+
+        if (reader) {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const dataText = line.substring(6);
+                        if (dataText === '[DONE]') {
+                            break;
+                        } else {
+                            // Backend replaced \n with \\n, so we revert it back here for display
+                            const unescapedText = dataText.replace(/\\n/g, '\n');
+                            fullReply += unescapedText;
+                            onUpdate(fullReply);
+                        }
+                    }
+                }
+            }
+        }
+        return fullReply;
     },
-    checkWriting: async (text: string, grade: string): Promise<{
+    checkWriting: async (text: string, grade: string, imageFile?: File): Promise<{
         grammarScore: number; vocabularyScore: number; clarityScore: number;
         toneAnalysis: string; feedback: string; correctedText: string;
     }> => {
-        const response = await api.post('/ai/check-writing', { text, grade });
+        const formData = new FormData();
+        if (text) formData.append('text', text);
+        formData.append('grade', grade);
+        if (imageFile) formData.append('image', imageFile);
+
+        const response = await api.post('/ai/check-writing', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
         return response.data;
     },
     checkSpeaking: async (audioFile: File): Promise<{

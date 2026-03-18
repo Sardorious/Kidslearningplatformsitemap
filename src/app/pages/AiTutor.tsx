@@ -10,6 +10,8 @@ const SUBJECTS = [
   { id: "English", label: "English", emoji: "📖", color: "from-blue-500 to-cyan-500" },
   { id: "Arabic", label: "Arabic", emoji: "🌙", color: "from-emerald-500 to-teal-500" },
   { id: "Spanish", label: "Spanish", emoji: "🌊", color: "from-orange-500 to-amber-500" },
+  { id: "Turkish", label: "Turkish", emoji: "🏖️", color: "from-red-500 to-rose-600" },
+  { id: "Russian", label: "Russian", emoji: "🏰", color: "from-blue-600 to-indigo-700" },
   { id: "Math", label: "Math", emoji: "🔢", color: "from-pink-500 to-rose-500" },
   { id: "Science", label: "Science", emoji: "🔬", color: "from-violet-500 to-purple-500" },
   { id: "History", label: "History", emoji: "🏛️", color: "from-yellow-500 to-orange-500" },
@@ -21,6 +23,8 @@ const QUICK_PROMPTS: Record<string, string[]> = {
   English: ["What is a metaphor?", "Help me practice past tense", "Give me an example sentence"],
   Arabic: ["How do I say 'Hello' in Arabic?", "Teach me Arabic numbers", "What is the Arabic alphabet?"],
   Spanish: ["How do I say 'Thank you'?", "Teach me Spanish greetings", "Practice simple sentences"],
+  Turkish: ["How do I say 'Good morning' in Turkish?", "Teach me colors in Turkish", "What are some Turkish greetings?"],
+  Russian: ["How do I say 'Hello' in Russian?", "Teach me the Cyrillic alphabet", "How to say 'Thank you' in Russian?"],
   Math: ["Help me with fractions", "What is multiplication?", "Explain geometry shapes"],
   Science: ["What is gravity?", "How do plants make food?", "Tell me about the planets"],
   History: ["Who were the ancient Egyptians?", "What caused WW1?", "Tell me about dinosaurs"],
@@ -74,20 +78,20 @@ export function AiTutor() {
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
 
+    const botMsgId = (Date.now() + 1).toString();
+    const initialBotMsg: Message = { id: botMsgId, role: "bot", text: "", timestamp: new Date() };
+    setMessages((prev) => [...prev, initialBotMsg]);
+
     try {
-      const res = await aiService.tutorChat(msgText, activeSubject.label, grade);
-      const botMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "bot",
-        text: res.reply,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, botMsg]);
+      await aiService.tutorChatStream(msgText, activeSubject.label, grade, (text: string) => {
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === botMsgId ? { ...msg, text } : msg))
+        );
+      });
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { id: (Date.now() + 1).toString(), role: "bot", text: "Oops! I had a hiccup 🔧. Please try again!", timestamp: new Date() },
-      ]);
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === botMsgId ? { ...msg, text: "Oops! I had a hiccup 🔧. Please try again!" } : msg))
+      );
     } finally {
       setLoading(false);
     }
