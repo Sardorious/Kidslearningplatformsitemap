@@ -39,8 +39,12 @@ export const userService = {
         const response = await api.get('/users/my-badges');
         return response.data;
     },
-    getChildProgress: async (): Promise<any> => {
-        const response = await api.get('/users/child-progress');
+    getChildProgress: async (childId: number): Promise<any> => {
+        const response = await api.get(`/users/${childId}/progress`);
+        return response.data;
+    },
+    getMyChildren: async (): Promise<any[]> => {
+        const response = await api.get('/users/my-children');
         return response.data;
     },
 };
@@ -299,10 +303,39 @@ export const aiService = {
         const response = await api.post('/ai/lesson-plan', { topic, ageGroup, level });
         return response.data;
     },
-    getProgressReport: async (): Promise<{
+    getProgressReport: async (childId?: number): Promise<{
         summary: string; strengths: string; areasToImprove: string; recommendations: string;
     }> => {
-        const response = await api.get('/ai/progress-report');
+        const url = childId ? `/ai/progress-report?childId=${childId}` : '/ai/progress-report';
+        const response = await api.get(url);
         return response.data;
     },
+};
+
+// Assignments API
+export const assignmentService = {
+    getByCourse: async (courseId: number): Promise<any[]> => {
+        const response = await api.get(`/courses/${courseId}/assignments`);
+        return response.data;
+    },
+    getById: async (assignmentId: number): Promise<any> => {
+        const response = await api.get(`/assignments/${assignmentId}`);
+        return response.data;
+    },
+    create: async (data: { courseId: number; title: string; description: string; dueDate?: string; maxScore: number }): Promise<any> => {
+        const response = await api.post('/admin/assignments', data);
+        return response.data;
+    },
+    getSubmissions: async (assignmentId: number): Promise<any[]> => {
+        const response = await api.get(`/assignments/${assignmentId}/submissions`);
+        return response.data;
+    },
+    submit: async (assignmentId: number, data: { submissionText: string; fileUrl?: string }): Promise<any> => {
+        const response = await api.post(`/assignments/${assignmentId}/submit`, data);
+        return response.data;
+    },
+    gradeSubmission: async (submissionId: number, data: { score: number; feedback?: string }): Promise<any> => {
+        const response = await api.post(`/submissions/${submissionId}/grade`, data);
+        return response.data;
+    }
 };

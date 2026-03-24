@@ -75,64 +75,65 @@ export function ParentDashboard() {
   const [aiReport, setAiReport] = useState<any>(null);
 
   useEffect(() => {
-    const fetchChildren = async () => {
+    const fetchChildrenAndProgress = async () => {
       try {
-        // Try to fetch the real linked child's progress first
-        const realChildProgress = await userService.getChildProgress().catch(() => null);
-        if (realChildProgress) {
-          setChildData(realChildProgress);
-          const mapped = [{
-            id: String(realChildProgress.childId),
-            name: realChildProgress.childName,
-            avatar: "👧",
-            grade: "Enrolled Student",
+        setLoading(true);
+        const myChildren = await userService.getMyChildren().catch(() => []);
+        
+        if (myChildren && myChildren.length > 0) {
+          const mapped = myChildren.map((c: any, i: number) => ({
+            id: String(c.id),
+            name: c.name,
+            avatar: ["👧", "👦", "🧒", "👶"][i % 4],
+            grade: "Student",
             age: 0,
-            coursesEnrolled: 0,
+            coursesEnrolled: 1,
             completionRate: 0,
             weeklyHours: 0,
             recentScores: [],
             strengths: ["Learning"],
             needsImprovement: [],
-          }];
+            xp: c.xp,
+            coins: c.coins
+          }));
           setChildren(mapped);
-          setSelectedChildId(mapped[0].id);
-        } else {
-          // Fallback: load all students
-          const users = await userService.getAllUsers();
-          const students = users.filter((u: any) => u.role === 'STUDENT');
-          if (students.length > 0) {
-            const mapped = students.map((s: any, i: number) => ({
-              id: String(s.id),
-              name: s.name,
-              avatar: ["👧", "👦", "🧒", "👶"][i % 4],
-              grade: `Grade ${(i % 6) + 1}`,
-              age: 6 + (i % 7),
-              coursesEnrolled: 2,
-              completionRate: 60 + Math.round(Math.random() * 35),
-              weeklyHours: 3 + Math.round(Math.random() * 4),
-              recentScores: [70, 75, 80, 82, 85].map(sc => sc + Math.round(Math.random() * 10 - 5)),
-              strengths: ["Reading", "Math"].slice(0, 1 + (i % 2)),
-              needsImprovement: ["Science", "Writing"].slice(0, 1 + (i % 2)),
-            }));
-            setChildren(mapped);
-            setSelectedChildId(mapped[0].id);
+          
+          // Select first child if none selected yet
+          const childToSelect = selectedChildId && mapped.find(m => m.id === selectedChildId) 
+            ? selectedChildId 
+            : mapped[0].id;
+          
+          setSelectedChildId(childToSelect);
+          
+          // Fetch progress for selected child
+          const childProgress = await userService.getChildProgress(Number(childToSelect)).catch(() => null);
+          if (childProgress) {
+            setChildData(childProgress);
           }
+        } else {
+          // No linked children, use fallback
+          setChildren(fallbackChildren);
+          setSelectedChildId(fallbackChildren[0].id);
         }
-      } catch {
-        // fallback already set
+      } catch (err) {
+        console.error("Failed to fetch parent data", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchChildren();
-  }, []);
+    
+    fetchChildrenAndProgress();
+  }, [selectedChildId]); 
+  // Refetch when selectedChildId changes to get specific progress
 
-  if (loading) return <ParentSkeleton />;
+  if (loading && !childData) return <ParentSkeleton />;
 
   const child = children.find(c => c.id === selectedChildId) || children[0];
   const weekDays = [t.mon, t.tue, t.wed, t.thu, t.fri, t.sat, t.sun];
   const activityData = [3.5, 4.2, 5.8, 4.5, 6.2, 5.5, 4.8];
-  const avgScore = Math.round(child.recentScores.reduce((a: number, b: number) => a + b, 0) / child.recentScores.length);
+  const avgScore = child.recentScores && child.recentScores.length > 0
+      ? Math.round(child.recentScores.reduce((a: number, b: number) => a + b, 0) / child.recentScores.length)
+      : 85; // Fallback score
 
   const handleSendMessage = async () => {
     if (!contactMsg.trim()) { alert("Please write a message first."); return; }
@@ -147,9 +148,19 @@ export function ParentDashboard() {
     setAiReportLoading(true);
     setAiReport(null);
     try {
-      // In a real app, child.id would be used to fetch actual DB data
-      const report = await aiService.getProgressReport();
-      setAiReport(report);
+      if (child.id.startsWith("child-")) {
+        // Fallback for mocked user
+        await new Promise(res => setTimeout(res, 1000));
+        setAiReport({
+           summary: `${child.name} has been doing wonderfully! Keep up the good work.`,
+           strengths: "Excellent reading comprehension and math skills.",
+           areasToImprove: "Needs to practice writing and spelling.",
+           recommendations: "Spend 15 mins daily on spelling exercises."
+        });
+      } else {
+        const report = await aiService.getProgressReport(Number(child.id));
+        setAiReport(report);
+      }
     } catch {
       alert("AI Report generation failed. Try again.");
     } finally {

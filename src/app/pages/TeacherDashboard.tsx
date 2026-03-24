@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Input } from "../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useLanguage } from "../contexts/LanguageContext";
-import { userService, courseService, materialService, lessonService, fileService, aiService } from "../api/services";
+import { userService, courseService, materialService, lessonService, fileService, aiService, assignmentService } from "../api/services";
 import { Course, User } from "../types";
 
 function TeacherSkeleton() {
@@ -87,22 +87,35 @@ export function TeacherDashboard() {
         setStudents(teacherStudents);
         setCourses(coursesData || []);
 
-        // Mocking assignments from fetched students since there's no direct teacher assignments endpoint visible
-        // In a real app, we'd have a specific endpoint for this.
-        const mockAssignments = [
-          {
-            id: "a1",
-            studentName: "Emma Wilson",
-            studentClass: "Grade 2A",
-            title: "Creative Story Writing",
-            subject: "Writing",
-            type: "writing",
-            status: "pending",
-            submittedDate: "Today",
-            priority: "high",
+        // Fetch real assignments and submissions from backend
+        const allSubmissions: any[] = [];
+        if (coursesData && coursesData.length > 0) {
+          for (const course of coursesData) {
+            const courseAssignments = await assignmentService.getByCourse(course.id).catch(() => []);
+            for (const assignment of courseAssignments) {
+              const subs = await assignmentService.getSubmissions(assignment.id).catch(() => []);
+              const mappedSubs = subs.map((s: any) => ({
+                id: s.id,
+                assignmentId: s.assignmentId,
+                studentId: s.studentId,
+                studentName: s.studentName,
+                studentClass: course.title,
+                title: assignment.title,
+                subject: course.category || "General",
+                type: "assignment",
+                status: s.score != null ? "graded" : "pending",
+                grade: s.score,
+                feedback: s.feedback,
+                submissionText: s.submissionText,
+                fileUrl: s.fileUrl,
+                submittedDate: new Date(s.submittedAt).toLocaleDateString(),
+                priority: "normal"
+              }));
+              allSubmissions.push(...mappedSubs);
+            }
           }
-        ];
-        setAssignments(mockAssignments);
+        }
+        setAssignments(allSubmissions);
       } catch (error) {
         console.error("Failed to load teacher dashboard data:", error);
       } finally {
@@ -165,14 +178,22 @@ export function TeacherDashboard() {
       return;
     }
     setSubmitting(true);
-    await new Promise(res => setTimeout(res, 600)); // simulate API call
-    setAssignments((prev: any[]) => prev.map((a: any) =>
-      a.id === activeAssignment?.id
-        ? { ...a, status: "graded", grade: parseInt(gradeValue), gradedDate: "Today" }
-        : a
-    ));
-    setSubmitting(false);
-    showSuccess(`✅ Grade ${gradeValue}% submitted successfully!`);
+    try {
+      await assignmentService.gradeSubmission(activeAssignment.id, { 
+        score: parseInt(gradeValue), 
+        feedback: feedbackText 
+      });
+      setAssignments((prev: any[]) => prev.map((a: any) =>
+        a.id === activeAssignment.id
+          ? { ...a, status: "graded", grade: parseInt(gradeValue), feedback: feedbackText, gradedDate: "Today" }
+          : a
+      ));
+      showSuccess(`✅ Grade ${gradeValue}% submitted successfully!`);
+    } catch {
+      alert("Failed to submit grade.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSendFeedback = async () => {

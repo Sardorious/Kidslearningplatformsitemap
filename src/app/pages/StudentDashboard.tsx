@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import { Trophy, Flame, Star, TrendingUp, BookOpen, Clock, Target, Award, Coins, Sparkles, MessageSquare, Globe } from "lucide-react";
+import { Trophy, Flame, Star, TrendingUp, BookOpen, Clock, Target, Award, Coins, Sparkles, MessageSquare, Globe, Edit } from "lucide-react";
 import { studentProgress } from "../data/mockData";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
 import { useLanguage } from "../contexts/LanguageContext";
-import { userService, courseService } from "../api/services";
+import { Input } from "../components/ui/input";
+import { userService, courseService, assignmentService } from "../api/services";
 
 function StudentSkeleton() {
   return (
@@ -36,6 +37,9 @@ export function StudentDashboard() {
   const [courses, setCourses] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [badges, setBadges] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [submittingAssignment, setSubmittingAssignment] = useState<any>(null);
+  const [submissionText, setSubmissionText] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -53,6 +57,16 @@ export function StudentDashboard() {
         setCourses(coursesData ? coursesData.slice(0, 3) : []);
         setLeaderboard(leaderboardData || []);
         setBadges(badgesData || []);
+
+        const allAssignments = [];
+        if (coursesData && coursesData.length > 0) {
+          for (const c of coursesData.slice(0, 3)) {
+            const courseAssignments = await assignmentService.getByCourse(c.id).catch(() => []);
+            allAssignments.push(...courseAssignments.map((a: any) => ({ ...a, courseTitle: c.title })));
+          }
+        }
+        setAssignments(allAssignments);
+
       } catch (error) {
         console.error("Failed to load student dashboard data:", error);
       } finally {
@@ -96,7 +110,7 @@ export function StudentDashboard() {
               </div>
               <div className="bg-white/20 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2">
                 <Trophy className="w-4 h-4" />
-                <span className="font-bold text-sm">{displayProfile.achievements.filter((a: any) => a.earned).length} Badges</span>
+                <span className="font-bold text-sm">{badges.length} Badges</span>
               </div>
             </div>
           </div>
@@ -201,6 +215,57 @@ export function StudentDashboard() {
               </div>
             </div>
           </Card>
+
+          {/* Pending Assignments */}
+          <div>
+            <h2 className="text-xl font-black text-gray-900 mb-4">Pending Assignments</h2>
+            <Card className="divide-y divide-gray-50 rounded-2xl border border-gray-100 overflow-hidden">
+              {assignments.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 text-sm italic">No pending assignments! 🎉</div>
+              ) : (
+                assignments.map((assignment: any) => (
+                  <div key={assignment.id} className="p-4 hover:bg-gray-50 transition-colors flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center shrink-0">
+                      <Edit className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-gray-900 truncate">{assignment.title}</p>
+                      <p className="text-xs text-gray-500 truncate">{assignment.courseTitle}</p>
+                    </div>
+                    {submittingAssignment?.id === assignment.id ? (
+                      <div className="flex items-center gap-2 mt-3 md:mt-0 w-full md:w-auto">
+                        <Input
+                          placeholder="Your answer..."
+                          value={submissionText}
+                          onChange={(e) => setSubmissionText(e.target.value)}
+                          className="flex-1 w-full md:w-48 text-sm"
+                        />
+                        <Button 
+                          size="sm" 
+                          onClick={async () => {
+                            if (!submissionText.trim()) return;
+                            await assignmentService.submit(assignment.id, { submissionText });
+                            setSubmittingAssignment(null);
+                            setSubmissionText("");
+                            alert("Assignment submitted successfully!");
+                          }}
+                        >
+                          Send
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setSubmittingAssignment(null)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="text-right shrink-0 mt-3 md:mt-0">
+                        <Button size="sm" variant="outline" onClick={() => setSubmittingAssignment(assignment)}>
+                          Submit Work
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </Card>
+          </div>
 
           {/* Recent Activity */}
           <div>
